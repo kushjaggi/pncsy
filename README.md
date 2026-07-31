@@ -42,7 +42,9 @@ Writes two files:
 | `langgraph-path.md` | Fixed-structure scaffold, ready to fill |
 | `langgraph-path.prompt.md` | The prompt that fills it — yours to edit |
 
-Hand both to your agent (Cursor, Claude, whatever). It fills the scaffold using the prompt. No API key, no lock-in, and the prompt is a file you can edit and re-run.
+Hand both to your agent (Cursor, Claude, whatever). It fills the scaffold using the prompt. No API key, no lock-in.
+
+The prompt is the steering wheel: edit it, re-fill, get a different plan from the same structure. Re-running `learn` will not clobber an edited prompt or a filled path — existing files are kept unless you pass `--force`.
 
 **Levels** — ladder runs from basic up to your target:
 
@@ -136,6 +138,7 @@ inkship guide.md --no-cover --no-toc
 | `--level <x>` | `basic` \| `intermediate` \| `advanced` \| `expert` (default: intermediate) |
 | `--depth <x>` | `quick` \| `standard` \| `deep` (default: standard) |
 | `-o <dir\|file>` | Where to write both files |
+| `--force` | Overwrite existing path/prompt (default: keep your edits) |
 | `--ship` / `--open` | Render the scaffold right away |
 
 ### Frontmatter (optional)

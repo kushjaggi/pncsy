@@ -5,7 +5,10 @@
  */
 
 import assert from "assert";
-import { buildPath, buildPrompt, ladderFor, wantsPapers } from "./learn.mjs";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { buildPath, buildPrompt, ladderFor, wantsPapers, writeUnlessEdited } from "./learn.mjs";
 import { slugify, parseFrontmatter, polishMarkdown, injectAutoToc } from "./inkship.mjs";
 
 let passed = 0;
@@ -83,6 +86,23 @@ check("auto toc needs three h2 and links match slugs", () => {
   assert.ok(withToc.includes("## Table of contents"));
   assert.ok(withToc.includes("[Two Words](#two-words)"));
   assert.strictEqual(withToc.indexOf("## Table of contents") > withToc.indexOf("Blurb."), true);
+});
+
+check("edited prompt survives a re-run unless forced", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "inkship-check-"));
+  const file = path.join(dir, "topic-path.prompt.md");
+  try {
+    assert.strictEqual(writeUnlessEdited(file, "generated", false), "wrote");
+    fs.writeFileSync(file, "my edits", "utf8");
+
+    assert.strictEqual(writeUnlessEdited(file, "generated", false), "kept");
+    assert.strictEqual(fs.readFileSync(file, "utf8"), "my edits", "re-run clobbered edits");
+
+    assert.strictEqual(writeUnlessEdited(file, "generated", true), "wrote");
+    assert.strictEqual(fs.readFileSync(file, "utf8"), "generated", "--force did not overwrite");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 check("slugify matches heading anchors", () => {

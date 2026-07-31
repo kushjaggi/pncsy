@@ -62,7 +62,7 @@ Then:
 
 Defaults: level `intermediate`, depth `standard`. Ladder runs from basic up to the target level. Papers section appears on `deep`, or when target is advanced or expert.
 
-If the user edits the prompt file, re-fill from the edited prompt — do not regenerate the scaffold unless level or depth changed.
+The prompt file is the control surface. If the user edits it, re-read it and re-fill from the edited version — those edits outrank this skill's defaults. Re-running `learn` keeps existing files; only pass `--force` when the user explicitly wants the scaffold and prompt reset.
 
 ## Out-of-box behavior
 

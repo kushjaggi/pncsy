@@ -41,6 +41,7 @@ Options:
   --level <x>     basic | intermediate | advanced | expert   (default: intermediate)
   --depth <x>     quick | standard | deep                    (default: standard)
   -o, --output <dir|file>   Where to write (default: cwd)
+  --force         Overwrite existing path/prompt files (default: keep them)
   --ship          Render PDF right after scaffolding
   --open          Open result (implies --ship)
   -h, --help
@@ -56,6 +57,7 @@ export function parseLearnArgs(args) {
     output: null,
     ship: false,
     open: false,
+    force: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -64,6 +66,7 @@ export function parseLearnArgs(args) {
     else if (a === "--level" && args[i + 1]) opts.level = args[++i].toLowerCase();
     else if (a === "--depth" && args[i + 1]) opts.depth = args[++i].toLowerCase();
     else if ((a === "-o" || a === "--output") && args[i + 1]) opts.output = args[++i];
+    else if (a === "--force") opts.force = true;
     else if (a === "--ship") opts.ship = true;
     else if (a === "--open") {
       opts.open = true;
@@ -287,15 +290,25 @@ function resolveTargets(opts) {
   };
 }
 
+/** Existing files hold edits — a filled path or a tuned prompt. Keep unless forced. */
+export function writeUnlessEdited(file, contents, force) {
+  if (!force && fs.existsSync(file)) return "kept";
+  fs.writeFileSync(file, contents, "utf8");
+  return "wrote";
+}
+
 export async function runLearn(args) {
   const opts = parseLearnArgs(args);
   const { pathFile, promptFile } = resolveTargets(opts);
 
-  fs.writeFileSync(pathFile, buildPath(opts), "utf8");
-  fs.writeFileSync(promptFile, buildPrompt(opts), "utf8");
+  const pathState = writeUnlessEdited(pathFile, buildPath(opts), opts.force);
+  const promptState = writeUnlessEdited(promptFile, buildPrompt(opts), opts.force);
 
-  console.error("Path   " + pathFile);
-  console.error("Prompt " + promptFile);
+  console.error("Path   " + pathFile + "  [" + pathState + "]");
+  console.error("Prompt " + promptFile + "  [" + promptState + "]");
+  if (pathState === "kept" || promptState === "kept") {
+    console.error("Note   existing files left alone. --force to regenerate.");
+  }
   console.error("Next   fill path using prompt, then: inkship \"" + pathFile + "\" --pack");
 
   if (opts.ship) {
