@@ -1,6 +1,6 @@
 /**
  * Default learning path config.
- * `inkship learn --init-config` dumps this as JSON for editing.
+ * `pncsy learn --init-config` dumps this as JSON for editing.
  *
  * Tokens usable in any string: {{topic}} {{level}} {{levelTitle}} {{depth}}
  * {{n}} {{concepts}} {{resources}} {{traps}} {{glossary}} {{ladder}}

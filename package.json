@@ -1,10 +1,11 @@
 {
-  "name": "inkship",
+  "name": "prompting-nahi-coding-sikho-yojna",
   "version": "1.0.0",
-  "description": "Ship Markdown as share-ready PDF/HTML — auto polish AI dumps, cover, TOC, Mermaid. One command.",
+  "description": "Prompting nahi, coding sikho. Structured learning paths and share-ready PDF/HTML from Markdown — no prompt lottery.",
   "type": "module",
   "bin": {
-    "inkship": "./bin/inkship"
+    "prompting-nahi-coding-sikho-yojna": "./bin/pncsy",
+    "pncsy": "./bin/pncsy"
   },
   "files": [
     "bin",
@@ -14,18 +15,20 @@
     "LICENSE"
   ],
   "scripts": {
-    "inkship": "node ./scripts/inkship.mjs",
-    "postinstall": "node -e \"console.error('inkship ready. Try: inkship README.md --open')\""
+    "pncsy": "node ./scripts/pncsy.mjs",
+    "check": "node ./scripts/check.mjs",
+    "postinstall": "node -e \"console.error('pncsy ready. Try: pncsy learn \\\"Kafka\\\" --level advanced')\""
   },
   "keywords": [
+    "learning-path",
+    "roadmap",
+    "syllabus",
     "markdown",
     "pdf",
     "html",
     "mermaid",
     "documentation",
-    "cli",
-    "ai-docs",
-    "export"
+    "cli"
   ],
   "author": "Kush",
   "license": "MIT",
@@ -39,10 +42,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/kushjaggi/inkship.git"
+    "url": "https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna.git"
   },
   "bugs": {
-    "url": "https://github.com/kushjaggi/inkship/issues"
+    "url": "https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna/issues"
   },
-  "homepage": "https://github.com/kushjaggi/inkship#readme"
+  "homepage": "https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna#readme"
 }

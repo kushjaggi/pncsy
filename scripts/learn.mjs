@@ -1,5 +1,5 @@
 /**
- * inkship learn — generate a fixed-structure learning path scaffold + its prompt.
+ * pncsy learn — generate a fixed-structure learning path scaffold + its prompt.
  * No API keys: the scaffold is deterministic, the agent fills it using the prompt.
  * Structure comes from config — see learn.default.mjs and `--init-config`.
  */
@@ -9,11 +9,11 @@ import os from "os";
 import path from "path";
 import { DEFAULT_CONFIG } from "./learn.default.mjs";
 
-export const CONFIG_NAME = "inkship.learn.json";
+export const CONFIG_NAME = "pncsy.learn.json";
 
 const CONFIG_LOOKUP = [
   path.join(process.cwd(), CONFIG_NAME),
-  path.join(os.homedir(), ".config", "inkship", "learn.json"),
+  path.join(os.homedir(), ".config", "pncsy", "learn.json"),
 ];
 
 function titleCase(s) {
@@ -169,7 +169,7 @@ chips: [${renderChips(config, ladder).join(", ")}]
 format: pdf
 ---
 
-<!-- inkship:learn topic="${topic}" level="${level}" depth="${depth}" -->
+<!-- pncsy:learn topic="${topic}" level="${level}" depth="${depth}" -->
 <!-- Fill with the sibling .prompt.md file. Keep every heading and its order. -->
 
 # ${topic} — Learning Path
@@ -237,13 +237,13 @@ ${ruleList.join("\n")}
 ## Ship it
 
 \`\`\`bash
-inkship "${slug(topic)}-path.md" --pack --open
+pncsy "${slug(topic)}-path.md" --pack --open
 \`\`\`
 `;
 }
 
 function usage(code = 1) {
-  console.error(`inkship learn "<topic>" [options]
+  console.error(`pncsy learn "<topic>" [options]
 
 Generate a fixed-structure learning path scaffold plus the prompt that fills it.
 
@@ -251,7 +251,7 @@ Options:
   --level <x>     ${DEFAULT_CONFIG.levels.join(" | ")}   (default: intermediate)
   --depth <x>     ${Object.keys(DEFAULT_CONFIG.depths).join(" | ")}   (default: standard)
   -o, --output <dir|file>   Where to write (default: cwd)
-  --config <file> Use a specific config (default: ./${CONFIG_NAME}, then ~/.config/inkship/learn.json)
+  --config <file> Use a specific config (default: ./${CONFIG_NAME}, then ~/.config/pncsy/learn.json)
   --init-config   Write an editable ${CONFIG_NAME} and exit
   --force         Overwrite existing files (default: keep them)
   --ship          Render PDF right after scaffolding
@@ -352,7 +352,7 @@ function initConfig(opts) {
   );
   console.error("Config " + target + "  [" + state + "]");
   if (state === "kept") console.error("Note   existing config left alone. --force to reset.");
-  else console.error("Next   edit sections/levels/depths, then run: inkship learn \"<topic>\"");
+  else console.error("Next   edit sections/levels/depths, then run: pncsy learn \"<topic>\"");
 }
 
 export async function runLearn(args) {
@@ -373,10 +373,10 @@ export async function runLearn(args) {
   if (pathState === "kept" || promptState === "kept") {
     console.error("Note   existing files left alone. --force to regenerate.");
   }
-  console.error("Next   fill path using prompt, then: inkship \"" + pathFile + "\" --pack");
+  console.error("Next   fill path using prompt, then: pncsy \"" + pathFile + "\" --pack");
 
   if (opts.ship) {
-    const { shipFiles } = await import("./inkship.mjs");
+    const { shipFiles } = await import("./pncsy.mjs");
     await shipFiles(pathFile, { format: "pdf", open: opts.open });
   }
 }

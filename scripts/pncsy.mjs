@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * inkship — ship Markdown as print-ready docs (PDF / HTML / pack).
+ * pncsy — ship Markdown as print-ready docs (PDF / HTML / pack).
  * Solves: AI/agent .md dumps look amateur when shared.
  * Theme: scripts/theme.css (do not flatten).
  */
@@ -30,8 +30,8 @@ function log(msg) {
 }
 
 function usage(code = 1) {
-  console.error(`inkship <file.md|dir> [options]
-inkship learn "<topic>" [--level x] [--depth y]
+  console.error(`pncsy <file.md|dir> [options]
+pncsy learn "<topic>" [--level x] [--depth y]
 
 Ship Markdown as share-ready docs. Default: polished PDF.
 
@@ -147,14 +147,14 @@ function parseArgs(argv) {
 function ensureDeps() {
   const marker = path.join(ROOT, "node_modules", "marked", "package.json");
   if (fs.existsSync(marker)) return;
-  log("[inkship] install deps (this package only)…");
+  log("[pncsy] install deps (this package only)…");
   const r = spawnSync("npm", ["install", "--omit=dev", "--no-fund", "--no-audit"], {
     cwd: ROOT,
     stdio: "inherit",
     shell: process.platform === "win32",
   });
   if (r.status !== 0) {
-    log("[inkship] npm install failed: " + ROOT);
+    log("[pncsy] npm install failed: " + ROOT);
     process.exit(1);
   }
 }
@@ -418,7 +418,7 @@ function buildDocumentHtml({ title, bodyHtml, css, mermaidBlock, opts, sourceNam
     <div class="content">
       ${bodyHtml}
     </div>
-    <p class="footer-note">Shipped with inkship · ${escapeHtml(sourceName)}</p>
+    <p class="footer-note">prompting-nahi-coding-sikho-yojna · ${escapeHtml(sourceName)}</p>
   </article>
 </body>
 </html>`;
@@ -645,7 +645,7 @@ async function ship(opts) {
   return results;
 }
 
-/** Programmatic entry, used by `inkship learn --ship`. */
+/** Programmatic entry, used by `pncsy learn --ship`. */
 export async function shipFiles(input, overrides = {}) {
   return ship(normalizeFormat({ ...defaultOpts(), ...overrides, input }));
 }

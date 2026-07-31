@@ -19,7 +19,7 @@ import {
   writeUnlessEdited,
 } from "./learn.mjs";
 import { DEFAULT_CONFIG } from "./learn.default.mjs";
-import { slugify, parseFrontmatter, polishMarkdown, injectAutoToc } from "./inkship.mjs";
+import { slugify, parseFrontmatter, polishMarkdown, injectAutoToc } from "./pncsy.mjs";
 
 let passed = 0;
 function check(name, fn) {
@@ -149,8 +149,8 @@ check("prompt lists the sections it must fill", () => {
 });
 
 check("config file loads and falls back to built-in", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "inkship-cfg-"));
-  const file = path.join(dir, "inkship.learn.json");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-cfg-"));
+  const file = path.join(dir, "pncsy.learn.json");
   try {
     fs.writeFileSync(file, JSON.stringify({ kicker: "Syllabus" }), "utf8");
     const { config, source } = loadConfig(file);
@@ -166,7 +166,7 @@ check("config file loads and falls back to built-in", () => {
 });
 
 check("edited prompt survives a re-run unless forced", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "inkship-check-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-check-"));
   const file = path.join(dir, "topic-path.prompt.md");
   try {
     assert.strictEqual(writeUnlessEdited(file, "generated", false), "wrote");

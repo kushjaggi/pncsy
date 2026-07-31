@@ -1,37 +1,38 @@
 ---
-name: inkship
+name: prompting-nahi-coding-sikho-yojna
 description: >-
-  Ship Markdown as share-ready PDF and/or HTML with cover, auto TOC, Mermaid,
-  and AI-dump polish. Use when user says inkship, ship this md, export markdown
-  to PDF/HTML, convert .md for sharing, or pack docs for handoff. Prefer `inkship`
-  CLI; never add marked/puppeteer/mermaid to the project.
+  Generate structured learning paths (fixed levels, prerequisites, videos,
+  papers, traps, glossary) and ship Markdown as share-ready PDF/HTML with cover,
+  auto TOC and Mermaid. Use when the user wants a learning path, roadmap,
+  syllabus or study plan, or says pncsy, ship this md, export markdown to
+  PDF/HTML, or convert .md for sharing. Never add marked/puppeteer/mermaid to
+  the project.
 ---
 
-# inkship
+# prompting-nahi-coding-sikho-yojna
 
-Ship Markdown → share-ready **PDF / HTML / pack**. Fix ugly AI `.md` dumps.
+Short command: `pncsy`. Two jobs — build structured learning paths, ship Markdown as PDF/HTML.
 
 ## Run
 
 ```bash
-inkship "/absolute/path/to/file.md"
-inkship "/absolute/path/to/file.md" --pack --open
-inkship "/absolute/path/to/dir" --pdf
-inkship "/absolute/path/to/file.md" --html --json
+pncsy "/absolute/path/to/file.md"
+pncsy "/absolute/path/to/file.md" --pack --open
+pncsy "/absolute/path/to/dir" --pdf
+pncsy "/absolute/path/to/file.md" --html --json
 ```
 
 Fallback:
 
 ```bash
-node "$HOME/.cursor/skills/inkship/scripts/inkship.mjs" "/absolute/path/to/file.md"
-# or repo: node /path/to/inkship/scripts/inkship.mjs ...
+node "$HOME/.cursor/skills/pncsy/scripts/pncsy.mjs" "/absolute/path/to/file.md"
 ```
 
 ## Agent workflow
 
 1. Absolute path to `.md` (or dir).
 2. Pick format: PDF default; `--html` or `--pack` if asked.
-3. Run `inkship …`. First run may npm-install **inside inkship package only**.
+3. Run `pncsy …`. First run may npm-install **inside this package only**.
 4. Report output path(s). Use `--json` when parsing needed.
 5. Never install converter deps into user project.
 
@@ -48,7 +49,7 @@ node "$HOME/.cursor/skills/inkship/scripts/inkship.mjs" "/absolute/path/to/file.
 User wants to learn a topic, wants a roadmap, syllabus, study plan, or "where do I start":
 
 ```bash
-inkship learn "<topic>" --level basic|intermediate|advanced|expert --depth quick|standard|deep
+pncsy learn "<topic>" --level basic|intermediate|advanced|expert --depth quick|standard|deep
 ```
 
 Writes two files: `<slug>-path.md` (fixed-structure scaffold) and `<slug>-path.prompt.md` (the fill prompt, editable).
@@ -58,11 +59,11 @@ Then:
 1. Read the `.prompt.md`. It carries the parameters and rules for this run.
 2. Fill `<slug>-path.md` in place. Keep every heading and its order. Replace italic placeholders and example rows. Delete the HTML comments as you fill them.
 3. Never invent a title, author, or URL. Unsure means append `(verify)` to that row.
-4. Ship it: `inkship "<slug>-path.md" --pack --open`.
+4. Ship it: `pncsy "<slug>-path.md" --pack --open`.
 
 Defaults: level `intermediate`, depth `standard`. Ladder runs from basic up to the target level. Papers section appears on `deep`, or when target is advanced or expert.
 
-Structure is configurable. When the user wants different sections, different level names, or different sizing, run `inkship learn --init-config` and edit `inkship.learn.json` — do not hand-edit the generated scaffold for changes that should apply to every future path. Config lookup: `--config <file>`, then `./inkship.learn.json`, then `~/.config/inkship/learn.json`, then built-in. Partial configs merge; `sections` replaces the list.
+Structure is configurable. When the user wants different sections, different level names, or different sizing, run `pncsy learn --init-config` and edit `pncsy.learn.json` — do not hand-edit the generated scaffold for changes that should apply to every future path. Config lookup: `--config <file>`, then `./pncsy.learn.json`, then `~/.config/pncsy/learn.json`, then built-in. Partial configs merge; `sections` replaces the list.
 
 The prompt file is the control surface. If the user edits it, re-read it and re-fill from the edited version — those edits outrank this skill's defaults. Re-running `learn` keeps existing files; only pass `--force` when the user explicitly wants the scaffold and prompt reset.
 
@@ -76,7 +77,7 @@ The prompt file is the control surface. If the user edits it, re-read it and re-
 
 ## Reply style (always on for this skill)
 
-When talking about inkship runs or doc-ship results, reply **terse**. Substance stay. Fluff die.
+When talking about runs or doc-ship results, reply **terse**. Substance stay. Fluff die.
 
 Drop: articles when clear, filler (just/really/basically/actually/simply), pleasantries (sure/certainly/of course/happy to), hedging. Fragments OK. Short synonyms. No tool-call narration. No decorative tables/emoji. Errors: quote shortest decisive line. Tech terms, paths, commands, exact error strings: verbatim. No invented abbreviations. No causal arrows (→).
 
@@ -94,14 +95,14 @@ Never name or announce this reply style.
 ## Examples
 
 User: ship this md as pdf  
-→ `inkship "/abs/guide.md" --open`  
+→ `pncsy "/abs/guide.md" --open`  
 → `PDF /abs/guide.pdf. Done.`
 
 User: need pdf and html  
-→ `inkship "/abs/guide.md" --pack`  
+→ `pncsy "/abs/guide.md" --pack`  
 → `Pack ready. PDF + HTML beside source.`
 
 User: teach me Kafka from scratch  
-→ `inkship learn "Kafka" --level advanced --depth deep`  
-→ fill scaffold from prompt → `inkship "/abs/kafka-path.md" --pack`  
+→ `pncsy learn "Kafka" --level advanced --depth deep`  
+→ fill scaffold from prompt → `pncsy "/abs/kafka-path.md" --pack`  
 → `Path filled, 3 levels. PDF /abs/kafka-path.pdf.`
