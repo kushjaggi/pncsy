@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# inkship — ship Markdown as share-ready PDF / HTML
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT="$ROOT/scripts/inkship.mjs"
+
+if [[ ! -f "$SCRIPT" ]]; then
+  echo "inkship: missing $SCRIPT" >&2
+  exit 1
+fi
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: inkship <file.md|dir> [options]" >&2
+  echo "" >&2
+  echo "  inkship notes.md" >&2
+  echo "  inkship guide.md --pack --open" >&2
+  echo "  inkship docs/ --pdf" >&2
+  echo "  inkship dump.md --html --no-cover" >&2
+  echo "" >&2
+  exec node "$SCRIPT" --help
+fi
+
+exec node "$SCRIPT" "$@"

@@ -1,142 +1,134 @@
-# mdpdf
+# inkship
 
-**Markdown → visually styled PDF** in one command.
+**Ship Markdown as share-ready docs.** PDF, HTML, or both — one command.
 
-Cover page, Mermaid diagrams, dark code blocks, tables, callouts, page numbers. Uses your local Chrome — no project bloat if you install globally.
+The headache: AI/agents dump long `.md` files. You forward them raw. Looks amateur. Diagrams break. No cover. No TOC.
+
+**inkship** fixes that out of the box: polish chat fluff, build cover, auto TOC, render Mermaid, keep the teal print theme, spit PDF/HTML you can actually send.
 
 ```bash
-mdpdf README.md --open
+inkship tutorial.md --open
 ```
 
 ---
 
-## Features
+## What it does
 
-- Styled A4 PDF (teal cover, serif body, print-ready CSS)
-- GFM Markdown (tables, task lists, fenced code)
-- Mermaid diagrams rendered into the PDF
-- Optional cover chips / subtitle / kicker
-- Intermediate HTML kept next to the PDF (or drop with `--no-html`)
-- Works from any directory — deps stay with this package
+| Pain | Out of the box |
+|------|----------------|
+| Chatty AI openings in the file | Stripped (`--no-polish` to keep) |
+| No structure for sharing | Cover from `#` title + optional chips |
+| Long docs, no TOC | Auto TOC when ≥3 `##` headings |
+| Mermaid stays code | Rendered into PDF/HTML |
+| “I need PDF *and* a web copy” | `--pack` |
+| Folder of notes | Pass a directory — ships every `.md` |
 
-## Requirements
-
-| Need | Notes |
-|------|--------|
-| **Node.js 18+** | Runtime |
-| **Chrome / Chromium / Edge** | Headless print engine (`puppeteer-core`) |
-
-macOS Google Chrome path is detected automatically. Override with `--chrome` or `CHROME_PATH`.
+Formats: **PDF** (default) · **HTML** · **pack** (both). Theme: `scripts/theme.css` (kept).
 
 ## Install
 
-### Option A — clone + global link (recommended)
-
 ```bash
-git clone https://github.com/kushjaggi/md-to-pdf.git
-cd md-to-pdf
+git clone https://github.com/kushjaggi/inkship.git
+cd inkship
 npm install
-npm link          # puts `mdpdf` on your PATH
+npm link          # `inkship` on PATH
 ```
 
-### Option B — run without linking
+Or symlink:
 
 ```bash
-git clone https://github.com/kushjaggi/md-to-pdf.git
-cd md-to-pdf
-npm install
-node ./scripts/md-to-pdf.mjs ./README.md --open
-# or:
-./bin/mdpdf ./README.md --open
+ln -sf "$(pwd)/bin/inkship" ~/.local/bin/inkship
 ```
 
-### Option C — Cursor agents (personal skill)
+### Requirements
 
-Copy or symlink this repo to your Cursor skills folder so any agent can convert docs:
-
-```bash
-ln -s "$(pwd)" ~/.cursor/skills/md-to-pdf
-# or: cp -R . ~/.cursor/skills/md-to-pdf
-```
-
-Then tell any agent: *convert this md to pdf* — or run `mdpdf` yourself.
-
-Also symlink the CLI if you want the short command everywhere:
-
-```bash
-ln -sf "$(pwd)/bin/mdpdf" ~/.local/bin/mdpdf
-```
-
-(`~/.local/bin` should already be on your PATH.)
+- Node 18+
+- Chrome / Chromium / Edge (auto-detected; override with `--chrome` or `CHROME_PATH`)
 
 ## Usage
 
 ```bash
-mdpdf <file.md> [options]
+inkship <file.md|dir> [options]
 ```
 
-| Flag | Effect |
-|------|--------|
-| `-o`, `--output <path>` | Output PDF path (default: `<file>.pdf`) |
-| `--subtitle "..."` | Cover subtitle |
-| `--kicker "..."` | Cover eyebrow (default: `Document`) |
-| `--chips "A,B,C"` | Cover chips (comma-separated) |
-| `--meta "..."` | Cover meta line |
-| `--no-cover` | Skip cover page |
-| `--no-html` | Delete intermediate `.html` after PDF |
-| `--open` | Open PDF when done |
-| `--chrome <path>` | Chrome/Chromium binary |
-| `-h`, `--help` | Show help |
-
-### Examples
+### Formats
 
 ```bash
-# Basic
-mdpdf README.md
+inkship notes.md                 # PDF
+inkship notes.md --html          # styled HTML
+inkship notes.md --pack          # PDF + HTML
+inkship notes.md -f pack -o dist/
+inkship docs/                    # every .md in folder
+```
 
-# Custom cover + open
-mdpdf docs/guide.md \
-  --subtitle "Quick start for beginners" \
-  --chips "Setup,Usage,Tips" \
+### Cover / polish
+
+```bash
+inkship guide.md \
+  --subtitle "Share-ready walkthrough" \
+  --chips "Setup,Usage,Ship" \
   --kicker "Tutorial" \
   --open
 
-# Explicit output, no cover
-mdpdf notes.md -o /tmp/notes.pdf --no-cover
+inkship raw-dump.md --no-polish  # keep file exactly
+inkship guide.md --no-cover --no-toc
 ```
 
-## How it works
+### Flags
 
-1. Parse Markdown with [`marked`](https://github.com/markedjs/marked)
-2. Wrap Mermaid fences and inject theme CSS
-3. Open the HTML in headless Chrome via [`puppeteer-core`](https://pptr.dev/)
-4. Print to PDF (backgrounds + footer page numbers)
+| Flag | Effect |
+|------|--------|
+| `--pdf` / `--html` / `--pack` | Output type(s) |
+| `-f, --format pdf\|html\|pack` | Same |
+| `-o, --output <path>` | File base or directory |
+| `--subtitle` `--kicker` `--chips` `--meta` | Cover |
+| `--no-cover` `--no-toc` `--no-polish` | Turn off defaults |
+| `--no-html-keep` | Drop intermediate HTML after PDF |
+| `--open` | Open result |
+| `--json` | Summary on stdout (agents/CI) |
+| `--chrome <path>` | Browser binary |
 
-First run may install npm deps if you skipped `npm install` — it installs **in this package directory only**, never in the folder of the `.md` file you convert.
+### Frontmatter (optional)
 
-## Project layout
+```markdown
+---
+title: LangGraph from Zero
+subtitle: Beginner walkthrough
+kicker: Tutorial
+chips: [State, Edges, Tools]
+format: pack
+cover: true
+toc: true
+---
+
+# LangGraph from Zero
+...
+```
+
+CLI flags win over frontmatter when both set.
+
+## Cursor agents
+
+```bash
+ln -s "$(pwd)" ~/.cursor/skills/inkship
+# or: cp -R skill ~/.cursor/skills/inkship
+```
+
+Tell any agent: *ship this md* / *inkship this* / *export as pdf*.
+
+Skill embeds a **terse reply style** (no fluff) for status lines — never announces the style by name.
+
+## Layout
 
 ```
-md-to-pdf/
-├── bin/mdpdf              # CLI entry
+inkship/
+├── bin/inkship
 ├── scripts/
-│   ├── md-to-pdf.mjs      # Converter
-│   └── theme.css          # Print / PDF theme
-├── package.json
-├── LICENSE
+│   ├── inkship.mjs
+│   └── theme.css      # visual theme — keep
+├── skill/SKILL.md     # Cursor skill + terse voice
+├── examples/sample.md
 └── README.md
-```
-
-Edit `scripts/theme.css` to change colors, fonts, or cover style.
-
-## Cursor user rule (optional)
-
-Add this to **Cursor Settings → Rules** so every agent uses the same command:
-
-```text
-When converting Markdown to PDF, run:
-  mdpdf "/absolute/path/to/file.md"
-Never install marked/puppeteer/mermaid into the current project for this.
 ```
 
 ## License

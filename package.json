@@ -1,29 +1,31 @@
 {
-  "name": "mdpdf",
+  "name": "inkship",
   "version": "1.0.0",
-  "description": "Convert Markdown to visually styled PDFs — cover page, Mermaid, code blocks, tables. Zero project overhead.",
+  "description": "Ship Markdown as share-ready PDF/HTML — auto polish AI dumps, cover, TOC, Mermaid. One command.",
   "type": "module",
   "bin": {
-    "mdpdf": "./bin/mdpdf"
+    "inkship": "./bin/inkship"
   },
   "files": [
     "bin",
     "scripts",
+    "skill",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "mdpdf": "node ./scripts/md-to-pdf.mjs",
-    "postinstall": "node -e \"console.log('\\n  mdpdf ready. Try: mdpdf README.md --open\\n')\""
+    "inkship": "node ./scripts/inkship.mjs",
+    "postinstall": "node -e \"console.error('inkship ready. Try: inkship README.md --open')\""
   },
   "keywords": [
     "markdown",
     "pdf",
-    "md",
+    "html",
     "mermaid",
     "documentation",
     "cli",
-    "puppeteer"
+    "ai-docs",
+    "export"
   ],
   "author": "Kush",
   "license": "MIT",
@@ -37,10 +39,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/kushjaggi/md-to-pdf.git"
+    "url": "https://github.com/kushjaggi/inkship.git"
   },
   "bugs": {
-    "url": "https://github.com/kushjaggi/md-to-pdf/issues"
+    "url": "https://github.com/kushjaggi/inkship/issues"
   },
-  "homepage": "https://github.com/kushjaggi/md-to-pdf#readme"
+  "homepage": "https://github.com/kushjaggi/inkship#readme"
 }
