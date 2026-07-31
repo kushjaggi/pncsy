@@ -1,0 +1,46 @@
+{
+  "name": "mdpdf",
+  "version": "1.0.0",
+  "description": "Convert Markdown to visually styled PDFs — cover page, Mermaid, code blocks, tables. Zero project overhead.",
+  "type": "module",
+  "bin": {
+    "mdpdf": "./bin/mdpdf"
+  },
+  "files": [
+    "bin",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "mdpdf": "node ./scripts/md-to-pdf.mjs",
+    "postinstall": "node -e \"console.log('\\n  mdpdf ready. Try: mdpdf README.md --open\\n')\""
+  },
+  "keywords": [
+    "markdown",
+    "pdf",
+    "md",
+    "mermaid",
+    "documentation",
+    "cli",
+    "puppeteer"
+  ],
+  "author": "Kush",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "marked": "^15.0.0",
+    "mermaid": "^11.0.0",
+    "puppeteer-core": "^24.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kushjaggi/md-to-pdf.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kushjaggi/md-to-pdf/issues"
+  },
+  "homepage": "https://github.com/kushjaggi/md-to-pdf#readme"
+}

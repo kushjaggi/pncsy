@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# mdpdf — Markdown → styled PDF
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT="$ROOT/scripts/md-to-pdf.mjs"
+
+if [[ ! -f "$SCRIPT" ]]; then
+  echo "mdpdf: missing converter at $SCRIPT" >&2
+  exit 1
+fi
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: mdpdf <file.md> [options]" >&2
+  echo "" >&2
+  echo "Examples:" >&2
+  echo "  mdpdf README.md" >&2
+  echo "  mdpdf docs/guide.md --open" >&2
+  echo "  mdpdf tutorial.md --subtitle \"Quick start\" --chips \"A,B,C\"" >&2
+  echo "  mdpdf notes.md -o /tmp/notes.pdf --no-cover" >&2
+  echo "" >&2
+  exec node "$SCRIPT" --help
+fi
+
+exec node "$SCRIPT" "$@"
