@@ -8,7 +8,17 @@ import assert from "assert";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { buildPath, buildPrompt, ladderFor, wantsPapers, writeUnlessEdited } from "./learn.mjs";
+import {
+  buildPath,
+  buildPrompt,
+  ladderFor,
+  loadConfig,
+  mergeConfig,
+  sectionEnabled,
+  wantsPapers,
+  writeUnlessEdited,
+} from "./learn.mjs";
+import { DEFAULT_CONFIG } from "./learn.default.mjs";
 import { slugify, parseFrontmatter, polishMarkdown, injectAutoToc } from "./inkship.mjs";
 
 let passed = 0;
@@ -86,6 +96,73 @@ check("auto toc needs three h2 and links match slugs", () => {
   assert.ok(withToc.includes("## Table of contents"));
   assert.ok(withToc.includes("[Two Words](#two-words)"));
   assert.strictEqual(withToc.indexOf("## Table of contents") > withToc.indexOf("Blurb."), true);
+});
+
+check("config swaps sections, levels and depth sizing", () => {
+  const custom = mergeConfig(DEFAULT_CONFIG, {
+    levels: ["novice", "pro"],
+    depths: { standard: { concepts: 99 } },
+    sections: [
+      { id: "ladder", title: "Stage {{n}} — {{levelTitle}}", repeat: "levels", body: "{{concepts}} concepts" },
+      { id: "custom", title: "Interview questions", body: "_q_" },
+    ],
+  });
+
+  const md = buildPath({ topic: "SQL", level: "pro", depth: "standard" }, custom);
+  assert.ok(md.includes("## Stage 1 — Novice"));
+  assert.ok(md.includes("## Stage 2 — Pro"));
+  assert.ok(md.includes("## Interview questions"));
+  assert.ok(md.includes("99 concepts"), "depth override did not reach the template");
+  assert.ok(!md.includes("## Glossary"), "replaced section list still leaking defaults");
+
+  // Untouched depths survive a partial override
+  assert.strictEqual(custom.depths.deep.concepts, DEFAULT_CONFIG.depths.deep.concepts);
+  assert.strictEqual(custom.depths.standard.resources, DEFAULT_CONFIG.depths.standard.resources);
+});
+
+check("section gate honours depths, minLevel and the exclude veto", () => {
+  const gated = { id: "x", when: { depths: ["deep"], minLevel: "advanced" } };
+  assert.strictEqual(sectionEnabled(gated, "basic", "deep"), true);
+  assert.strictEqual(sectionEnabled(gated, "advanced", "quick"), true);
+  assert.strictEqual(sectionEnabled(gated, "basic", "quick"), false);
+  assert.strictEqual(sectionEnabled({ id: "y" }, "basic", "quick"), true);
+
+  const vetoed = { id: "z", when: { ...gated.when, excludeDepths: ["quick"] } };
+  assert.strictEqual(sectionEnabled(vetoed, "expert", "quick"), false, "veto lost to minLevel");
+  assert.strictEqual(sectionEnabled(vetoed, "expert", "deep"), true);
+
+  // Renaming levels must not silently open every gated section
+  const renamed = mergeConfig(DEFAULT_CONFIG, { levels: ["beginner", "working"] });
+  assert.strictEqual(sectionEnabled(gated, "working", "standard", renamed), false);
+});
+
+check("prompt lists the sections it must fill", () => {
+  const p = buildPrompt({ topic: "Redis", level: "basic", depth: "quick" });
+  assert.ok(p.includes("## Sections to fill"));
+  assert.ok(p.includes("- Snapshot"));
+  assert.ok(!p.includes("- Research papers"), "gated section leaked into prompt");
+
+  const laddered = buildPrompt({ topic: "Redis", level: "advanced", depth: "standard" });
+  assert.ok(laddered.includes("- Level 1 — Basic"), "repeat section not expanded per level");
+  assert.ok(laddered.includes("- Level 3 — Advanced"));
+  assert.ok(!laddered.includes("Level N"), "placeholder leaked into prompt");
+});
+
+check("config file loads and falls back to built-in", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "inkship-cfg-"));
+  const file = path.join(dir, "inkship.learn.json");
+  try {
+    fs.writeFileSync(file, JSON.stringify({ kicker: "Syllabus" }), "utf8");
+    const { config, source } = loadConfig(file);
+    assert.strictEqual(config.kicker, "Syllabus");
+    assert.strictEqual(source, file);
+    assert.ok(config.sections.length > 0, "defaults dropped on partial config");
+
+    const fallback = loadConfig(null);
+    assert.ok(fallback.config.kicker.length > 0);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 check("edited prompt survives a re-run unless forced", () => {

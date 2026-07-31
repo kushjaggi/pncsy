@@ -1,26 +1,24 @@
 /**
  * inkship learn — generate a fixed-structure learning path scaffold + its prompt.
  * No API keys: the scaffold is deterministic, the agent fills it using the prompt.
+ * Structure comes from config — see learn.default.mjs and `--init-config`.
  */
 
 import fs from "fs";
+import os from "os";
 import path from "path";
+import { DEFAULT_CONFIG } from "./learn.default.mjs";
 
-export const LEVELS = ["basic", "intermediate", "advanced", "expert"];
-export const DEPTHS = ["quick", "standard", "deep"];
+export const CONFIG_NAME = "inkship.learn.json";
 
-const LEVEL_TITLES = {
-  basic: "Basic",
-  intermediate: "Intermediate",
-  advanced: "Advanced",
-  expert: "Expert",
-};
+const CONFIG_LOOKUP = [
+  path.join(process.cwd(), CONFIG_NAME),
+  path.join(os.homedir(), ".config", "inkship", "learn.json"),
+];
 
-const DEPTH_RULES = {
-  quick: { concepts: 3, resources: 2, traps: 3, glossary: 8, papers: false },
-  standard: { concepts: 5, resources: 3, traps: 5, glossary: 12, papers: null },
-  deep: { concepts: 8, resources: 5, traps: 8, glossary: 20, papers: true },
-};
+function titleCase(s) {
+  return String(s).charAt(0).toUpperCase() + String(s).slice(1);
+}
 
 function slug(text) {
   return String(text)
@@ -32,133 +30,142 @@ function slug(text) {
     .slice(0, 60);
 }
 
-function usage(code = 1) {
-  console.error(`inkship learn "<topic>" [options]
-
-Generate a fixed-structure learning path scaffold plus the prompt that fills it.
-
-Options:
-  --level <x>     basic | intermediate | advanced | expert   (default: intermediate)
-  --depth <x>     quick | standard | deep                    (default: standard)
-  -o, --output <dir|file>   Where to write (default: cwd)
-  --force         Overwrite existing path/prompt files (default: keep them)
-  --ship          Render PDF right after scaffolding
-  --open          Open result (implies --ship)
-  -h, --help
-`);
-  process.exit(code);
+/** Top-level keys replace; `depths` merges per depth so you can retune one. */
+export function mergeConfig(base, override) {
+  if (!override) return base;
+  const out = { ...base, ...override };
+  if (override.depths) {
+    out.depths = { ...base.depths };
+    for (const [k, v] of Object.entries(override.depths)) {
+      out.depths[k] = { ...(base.depths[k] || {}), ...v };
+    }
+  }
+  if (override.depthGuidance) {
+    out.depthGuidance = { ...base.depthGuidance, ...override.depthGuidance };
+  }
+  return out;
 }
 
-export function parseLearnArgs(args) {
-  const opts = {
-    topic: null,
-    level: "intermediate",
-    depth: "standard",
-    output: null,
-    ship: false,
-    open: false,
-    force: false,
+export function loadConfig(explicitPath) {
+  const candidates = explicitPath ? [path.resolve(explicitPath)] : CONFIG_LOOKUP;
+  for (const file of candidates) {
+    if (!fs.existsSync(file)) continue;
+    let parsed;
+    try {
+      parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch (err) {
+      console.error("Bad config " + file + ": " + err.message);
+      process.exit(1);
+    }
+    return { config: mergeConfig(DEFAULT_CONFIG, parsed), source: file };
+  }
+  if (explicitPath) {
+    console.error("Config not found: " + path.resolve(explicitPath));
+    process.exit(1);
+  }
+  return { config: DEFAULT_CONFIG, source: "built-in" };
+}
+
+function fill(str, vars) {
+  return String(str).replace(/\{\{(\w+)\}\}/g, (m, key) =>
+    key in vars ? String(vars[key]) : m
+  );
+}
+
+export function ladderFor(level, config = DEFAULT_CONFIG) {
+  return config.levels.slice(0, config.levels.indexOf(level) + 1);
+}
+
+function depthRules(depth, config) {
+  return config.depths[depth] || {};
+}
+
+/** A section rides along when it has no gate, or when depth or level clears it. */
+export function sectionEnabled(section, level, depth, config = DEFAULT_CONFIG) {
+  const gate = section.when;
+  if (!gate) return true;
+  if (Array.isArray(gate.excludeDepths) && gate.excludeDepths.includes(depth)) return false;
+  if (Array.isArray(gate.depths) && gate.depths.includes(depth)) return true;
+  if (gate.minLevel) {
+    const floor = config.levels.indexOf(gate.minLevel);
+    // A minLevel that no longer exists (renamed levels) must not open the gate
+    if (floor === -1) return false;
+    return config.levels.indexOf(level) >= floor;
+  }
+  return false;
+}
+
+export function wantsPapers(level, depth, config = DEFAULT_CONFIG) {
+  const papers = config.sections.find((s) => s.id === "papers");
+  if (!papers) return false;
+  return sectionEnabled(papers, level, depth, config);
+}
+
+function baseVars({ topic, level, depth }, config) {
+  const rules = depthRules(depth, config);
+  return {
+    topic,
+    level,
+    levelTitle: titleCase(level),
+    depth,
+    depthGuidance: (config.depthGuidance || {})[depth] || "",
+    ladder: ladderFor(level, config).join(", "),
+    concepts: rules.concepts ?? "",
+    resources: rules.resources ?? "",
+    traps: rules.traps ?? "",
+    glossary: rules.glossary ?? "",
   };
-
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i];
-    if (a === "-h" || a === "--help") usage(0);
-    else if (a === "--level" && args[i + 1]) opts.level = args[++i].toLowerCase();
-    else if (a === "--depth" && args[i + 1]) opts.depth = args[++i].toLowerCase();
-    else if ((a === "-o" || a === "--output") && args[i + 1]) opts.output = args[++i];
-    else if (a === "--force") opts.force = true;
-    else if (a === "--ship") opts.ship = true;
-    else if (a === "--open") {
-      opts.open = true;
-      opts.ship = true;
-    } else if (a.startsWith("-")) {
-      console.error("Unknown option: " + a);
-      usage(1);
-    } else if (!opts.topic) opts.topic = a;
-    else opts.topic += " " + a;
-  }
-
-  if (!opts.topic) usage(1);
-  if (!LEVELS.includes(opts.level)) {
-    console.error("Bad level. Use: " + LEVELS.join(" | "));
-    process.exit(1);
-  }
-  if (!DEPTHS.includes(opts.depth)) {
-    console.error("Bad depth. Use: " + DEPTHS.join(" | "));
-    process.exit(1);
-  }
-  return opts;
 }
 
-/** Ladder runs from basic up to the requested level. */
-export function ladderFor(level) {
-  return LEVELS.slice(0, LEVELS.indexOf(level) + 1);
+function renderSection(section, vars) {
+  const parts = [];
+  if (section.title) parts.push("## " + fill(section.title, vars) + "\n");
+  if (section.note) parts.push("<!-- " + fill(section.note, vars) + " -->\n");
+  if (section.body) parts.push(fill(section.body, vars) + "\n");
+  return parts.join("\n");
 }
 
-/** Papers ride along on deep runs, or once the target reaches advanced. */
-export function wantsPapers(level, depth) {
-  const rule = DEPTH_RULES[depth].papers;
-  if (rule !== null) return rule;
-  return LEVELS.indexOf(level) >= LEVELS.indexOf("advanced");
+function renderChips(config, ladder) {
+  const out = [];
+  for (const chip of config.chips || []) {
+    if (chip === "{{levels}}") out.push(...ladder.map(titleCase));
+    else out.push(chip);
+  }
+  return out;
 }
 
-export function buildPath({ topic, level, depth }) {
-  const ladder = ladderFor(level);
-  const rules = DEPTH_RULES[depth];
-  const papers = wantsPapers(level, depth);
+export function buildPath(opts, config = DEFAULT_CONFIG) {
+  const { topic, level, depth } = opts;
+  const ladder = ladderFor(level, config);
+  const vars = baseVars(opts, config);
 
-  const chips = ["Prereqs", ...ladder.map((l) => LEVEL_TITLES[l]), "Traps"];
+  const blocks = [];
+  for (const section of config.sections) {
+    if (!sectionEnabled(section, level, depth, config)) continue;
+    if (section.repeat === "levels") {
+      ladder.forEach((lvl, i) => {
+        blocks.push(
+          renderSection(section, { ...vars, n: i + 1, levelTitle: titleCase(lvl), level: lvl })
+        );
+      });
+    } else {
+      blocks.push(renderSection(section, vars));
+    }
+  }
 
-  const levelSections = ladder
-    .map((l, i) => {
-      const name = LEVEL_TITLES[l];
-      return `## Level ${i + 1} — ${name}
-
-<!-- Goals: what the learner can do after this level. 2-4 bullets, each verifiable. -->
-
-### Goals
-
-- _goal_
-- _goal_
-
-<!-- Concepts: ${rules.concepts} items. One line each: term, then why it matters. -->
-
-### Core concepts
-
-- **_concept_** — _why it matters_
-
-<!-- Resources: ${rules.resources} items. Name + author/channel + what to skip. Mark unverified links (verify). -->
-
-### Resources
-
-| Type | Resource | Why | Time |
-|------|----------|-----|------|
-| Doc | _name_ | _reason_ | _hrs_ |
-
-### Do this
-
-- _one hands-on task that proves the goals_
-`;
-    })
+  const intro = config.intro || {};
+  const introBlock = [
+    intro.note ? "<!-- " + fill(intro.note, vars) + " -->\n" : "",
+    intro.body ? fill(intro.body, vars) + "\n" : "",
+  ]
+    .filter(Boolean)
     .join("\n");
-
-  const papersSection = papers
-    ? `## Research papers
-
-<!-- Canonical papers only. Format: Title (Authors, Year) — one-line takeaway. Add (verify) if unsure. -->
-
-| Paper | Year | Read for |
-|-------|------|----------|
-| _title_ | _year_ | _takeaway_ |
-
-`
-    : "";
 
   return `---
 title: ${topic} — Learning Path
-subtitle: ${LEVEL_TITLES[level]} track, ${depth} depth
-kicker: Learning Path
-chips: [${chips.join(", ")}]
+subtitle: ${titleCase(level)} track, ${depth} depth
+kicker: ${config.kicker}
+chips: [${renderChips(config, ladder).join(", ")}]
 format: pdf
 ---
 
@@ -167,63 +174,35 @@ format: pdf
 
 # ${topic} — Learning Path
 
-<!-- One paragraph: what this is, who it is for, honest time to competence. -->
-
-_Snapshot paragraph._
-
-## Snapshot
-
-| Field | Value |
-|-------|-------|
-| Topic | ${topic} |
-| Target level | ${LEVEL_TITLES[level]} |
-| Depth | ${depth} |
-| Time to target | _fill_ |
-| Assumes you know | _fill_ |
-
-## Prerequisites
-
-<!-- What must already be true. Add a self-check question per prerequisite. -->
-
-| Prerequisite | Self-check |
-|--------------|------------|
-| _skill_ | _question that proves it_ |
-
-${levelSections}
-## Videos and courses
-
-<!-- ${rules.resources} entries. Say what to watch and what to skip. Mark unverified (verify). -->
-
-| Resource | Creator | Watch for | Skip |
-|----------|---------|-----------|------|
-| _title_ | _who_ | _what_ | _what_ |
-
-${papersSection}## Common traps
-
-<!-- ${rules.traps} entries. Symptom the learner sees, then the real cause. -->
-
-| Trap | What actually breaks | Fix |
-|------|----------------------|-----|
-| _trap_ | _cause_ | _fix_ |
-
-## Glossary
-
-<!-- ${rules.glossary} terms. Plain-language definition, no circular wording. -->
-
-| Term | Meaning |
-|------|---------|
-| _term_ | _meaning_ |
-
-## Next
-
-- _what to learn after this path_
-`;
+${introBlock}
+${blocks.join("\n")}`;
 }
 
-export function buildPrompt({ topic, level, depth }) {
-  const ladder = ladderFor(level);
-  const rules = DEPTH_RULES[depth];
-  const papers = wantsPapers(level, depth);
+export function buildPrompt(opts, config = DEFAULT_CONFIG) {
+  const { topic, level, depth } = opts;
+  const ladder = ladderFor(level, config);
+  const rules = depthRules(depth, config);
+  const papers = wantsPapers(level, depth, config);
+  const vars = baseVars(opts, config);
+
+  const ruleList = [
+    ...(config.promptRules || []),
+    ...(papers ? config.promptRulesWhenPapers || [] : []),
+  ].map((r, i) => `${i + 1}. ${fill(r, vars)}`);
+
+  const sectionList = config.sections
+    .filter((s) => sectionEnabled(s, level, depth, config))
+    .flatMap((s) => {
+      if (!s.title) return [s.id];
+      if (s.repeat === "levels") {
+        return ladder.map((lvl, i) =>
+          fill(s.title, { ...vars, n: i + 1, levelTitle: titleCase(lvl), level: lvl })
+        );
+      }
+      return [fill(s.title, vars)];
+    })
+    .map((t) => "- " + t)
+    .join("\n");
 
   return `# Fill prompt — ${topic} learning path
 
@@ -241,22 +220,19 @@ Fill \`${slug(topic)}-path.md\` in place. Keep every heading and its order. Repl
 | Target level | ${level} |
 | Depth | ${depth} |
 | Levels to cover | ${ladder.join(", ")} |
-| Concepts per level | ${rules.concepts} |
-| Resources per level | ${rules.resources} |
-| Traps | ${rules.traps} |
-| Glossary terms | ${rules.glossary} |
+| Concepts per level | ${rules.concepts ?? "-"} |
+| Resources per level | ${rules.resources ?? "-"} |
+| Traps | ${rules.traps ?? "-"} |
+| Glossary terms | ${rules.glossary ?? "-"} |
 | Research papers section | ${papers ? "yes" : "no"} |
+
+## Sections to fill
+
+${sectionList}
 
 ## Rules
 
-1. Ladder runs ${ladder[0]} to ${ladder[ladder.length - 1]}. Each level must be usable on its own.
-2. Every level goal is verifiable — the learner can prove it with a task, not a feeling.
-3. Resources: canonical and well known. Give author or channel, and say what to skip.
-4. Never invent a title, author, or URL. Unsure means append \`(verify)\` to that row.
-${papers ? "5. Papers: title, authors, year, one-line takeaway. Classics over recent unless the field moved.\n" : ""}${papers ? "6" : "5"}. Traps name the symptom the learner sees, then the real cause underneath.
-${papers ? "7" : "6"}. Glossary definitions are plain language and non-circular.
-${papers ? "8" : "7"}. Depth \`${depth}\`: ${depth === "quick" ? "shortest useful path, links over prose" : depth === "deep" ? "include derivations, edge cases, and why-it-works reasoning" : "balance explanation and links"}.
-${papers ? "9" : "8"}. No filler openings, no motivational padding. Substance only.
+${ruleList.join("\n")}
 
 ## Ship it
 
@@ -264,6 +240,73 @@ ${papers ? "9" : "8"}. No filler openings, no motivational padding. Substance on
 inkship "${slug(topic)}-path.md" --pack --open
 \`\`\`
 `;
+}
+
+function usage(code = 1) {
+  console.error(`inkship learn "<topic>" [options]
+
+Generate a fixed-structure learning path scaffold plus the prompt that fills it.
+
+Options:
+  --level <x>     ${DEFAULT_CONFIG.levels.join(" | ")}   (default: intermediate)
+  --depth <x>     ${Object.keys(DEFAULT_CONFIG.depths).join(" | ")}   (default: standard)
+  -o, --output <dir|file>   Where to write (default: cwd)
+  --config <file> Use a specific config (default: ./${CONFIG_NAME}, then ~/.config/inkship/learn.json)
+  --init-config   Write an editable ${CONFIG_NAME} and exit
+  --force         Overwrite existing files (default: keep them)
+  --ship          Render PDF right after scaffolding
+  --open          Open result (implies --ship)
+  -h, --help
+`);
+  process.exit(code);
+}
+
+export function parseLearnArgs(args) {
+  const opts = {
+    topic: null,
+    level: "intermediate",
+    depth: "standard",
+    output: null,
+    config: null,
+    initConfig: false,
+    ship: false,
+    open: false,
+    force: false,
+  };
+
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === "-h" || a === "--help") usage(0);
+    else if (a === "--level" && args[i + 1]) opts.level = args[++i].toLowerCase();
+    else if (a === "--depth" && args[i + 1]) opts.depth = args[++i].toLowerCase();
+    else if ((a === "-o" || a === "--output") && args[i + 1]) opts.output = args[++i];
+    else if (a === "--config" && args[i + 1]) opts.config = args[++i];
+    else if (a === "--init-config") opts.initConfig = true;
+    else if (a === "--force") opts.force = true;
+    else if (a === "--ship") opts.ship = true;
+    else if (a === "--open") {
+      opts.open = true;
+      opts.ship = true;
+    } else if (a.startsWith("-")) {
+      console.error("Unknown option: " + a);
+      usage(1);
+    } else if (!opts.topic) opts.topic = a;
+    else opts.topic += " " + a;
+  }
+
+  return opts;
+}
+
+function validate(opts, config) {
+  if (!opts.topic) usage(1);
+  if (!config.levels.includes(opts.level)) {
+    console.error("Bad level. Use: " + config.levels.join(" | "));
+    process.exit(1);
+  }
+  if (!config.depths[opts.depth]) {
+    console.error("Bad depth. Use: " + Object.keys(config.depths).join(" | "));
+    process.exit(1);
+  }
 }
 
 function resolveTargets(opts) {
@@ -297,15 +340,36 @@ export function writeUnlessEdited(file, contents, force) {
   return "wrote";
 }
 
+function initConfig(opts) {
+  const target = path.resolve(
+    opts.output && !/\.md$/i.test(opts.output) ? opts.output : process.cwd(),
+    CONFIG_NAME
+  );
+  const state = writeUnlessEdited(
+    target,
+    JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n",
+    opts.force
+  );
+  console.error("Config " + target + "  [" + state + "]");
+  if (state === "kept") console.error("Note   existing config left alone. --force to reset.");
+  else console.error("Next   edit sections/levels/depths, then run: inkship learn \"<topic>\"");
+}
+
 export async function runLearn(args) {
   const opts = parseLearnArgs(args);
-  const { pathFile, promptFile } = resolveTargets(opts);
 
-  const pathState = writeUnlessEdited(pathFile, buildPath(opts), opts.force);
-  const promptState = writeUnlessEdited(promptFile, buildPrompt(opts), opts.force);
+  if (opts.initConfig) return initConfig(opts);
+
+  const { config, source } = loadConfig(opts.config);
+  validate(opts, config);
+
+  const { pathFile, promptFile } = resolveTargets(opts);
+  const pathState = writeUnlessEdited(pathFile, buildPath(opts, config), opts.force);
+  const promptState = writeUnlessEdited(promptFile, buildPrompt(opts, config), opts.force);
 
   console.error("Path   " + pathFile + "  [" + pathState + "]");
   console.error("Prompt " + promptFile + "  [" + promptState + "]");
+  console.error("Config " + source);
   if (pathState === "kept" || promptState === "kept") {
     console.error("Note   existing files left alone. --force to regenerate.");
   }

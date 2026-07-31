@@ -62,6 +62,8 @@ Then:
 
 Defaults: level `intermediate`, depth `standard`. Ladder runs from basic up to the target level. Papers section appears on `deep`, or when target is advanced or expert.
 
+Structure is configurable. When the user wants different sections, different level names, or different sizing, run `inkship learn --init-config` and edit `inkship.learn.json` — do not hand-edit the generated scaffold for changes that should apply to every future path. Config lookup: `--config <file>`, then `./inkship.learn.json`, then `~/.config/inkship/learn.json`, then built-in. Partial configs merge; `sections` replaces the list.
+
 The prompt file is the control surface. If the user edits it, re-read it and re-fill from the edited version — those edits outrank this skill's defaults. Re-running `learn` keeps existing files; only pass `--force` when the user explicitly wants the scaffold and prompt reset.
 
 ## Out-of-box behavior

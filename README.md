@@ -60,6 +60,32 @@ The prompt is the steering wheel: edit it, re-fill, get a different plan from th
 
 **Every path has the same sections**, so two topics are comparable and nothing gets skipped: snapshot, prerequisites with self-checks, the level ladder (goals, concepts, resources, one hands-on task), videos and courses, research papers, common traps, glossary, next.
 
+### Configure the structure
+
+The sections, the level names, the depth sizing and the prompt rules all come from config. Dump an editable copy:
+
+```bash
+inkship learn --init-config      # writes inkship.learn.json
+```
+
+Loaded from `--config <file>`, else `./inkship.learn.json`, else `~/.config/inkship/learn.json`, else built-in.
+
+```jsonc
+{
+  "levels": ["beginner", "working", "deep-expert"],   // rename or resize the ladder
+  "depths": { "standard": { "concepts": 6 } },        // retune one depth, rest untouched
+  "kicker": "Syllabus",
+  "sections": [                                       // replaces the section list wholesale
+    { "id": "interview", "title": "Interview questions", "body": "| Q | A |\n|---|---|\n| _q_ | _a_ |" }
+  ],
+  "promptRules": ["..."]                              // the rules baked into every prompt
+}
+```
+
+Section keys: `title`, `note` (HTML comment, invisible in the PDF), `body`, `repeat: "levels"` to emit one block per level, and `when: { depths, minLevel, excludeDepths }` to gate it. Tokens `{{topic}} {{levelTitle}} {{n}} {{concepts}} {{resources}} {{traps}} {{glossary}} {{ladder}}` interpolate anywhere.
+
+Partial configs merge with the defaults, except `sections`, which replaces the list so you stay in control of order.
+
 The prompt bans invented citations — unverified rows get tagged `(verify)` instead of quietly passing as real.
 
 Then ship it:
@@ -138,7 +164,9 @@ inkship guide.md --no-cover --no-toc
 | `--level <x>` | `basic` \| `intermediate` \| `advanced` \| `expert` (default: intermediate) |
 | `--depth <x>` | `quick` \| `standard` \| `deep` (default: standard) |
 | `-o <dir\|file>` | Where to write both files |
-| `--force` | Overwrite existing path/prompt (default: keep your edits) |
+| `--config <file>` | Use a specific config |
+| `--init-config` | Write an editable `inkship.learn.json` |
+| `--force` | Overwrite existing path/prompt/config (default: keep your edits) |
 | `--ship` / `--open` | Render the scaffold right away |
 
 ### Frontmatter (optional)
