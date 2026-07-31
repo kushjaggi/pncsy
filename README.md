@@ -25,6 +25,47 @@ inkship tutorial.md --open
 
 Formats: **PDF** (default) · **HTML** · **pack** (both). Theme: `scripts/theme.css` (kept).
 
+## Learning paths
+
+Second headache: people prompt their way to a study plan. Every run comes back a different shape, half the links are made up, and nothing is reusable.
+
+`inkship learn` fixes the shape first, content second.
+
+```bash
+inkship learn "LangGraph" --level advanced --depth deep
+```
+
+Writes two files:
+
+| File | What |
+|------|------|
+| `langgraph-path.md` | Fixed-structure scaffold, ready to fill |
+| `langgraph-path.prompt.md` | The prompt that fills it — yours to edit |
+
+Hand both to your agent (Cursor, Claude, whatever). It fills the scaffold using the prompt. No API key, no lock-in, and the prompt is a file you can edit and re-run.
+
+**Levels** — ladder runs from basic up to your target:
+
+`basic` → `intermediate` → `advanced` → `expert`
+
+**Depth** — how much per level:
+
+| Depth | Concepts/level | Resources | Papers |
+|-------|----------------|-----------|--------|
+| `quick` | 3 | 2 | no |
+| `standard` | 5 | 3 | advanced+ only |
+| `deep` | 8 | 5 | yes |
+
+**Every path has the same sections**, so two topics are comparable and nothing gets skipped: snapshot, prerequisites with self-checks, the level ladder (goals, concepts, resources, one hands-on task), videos and courses, research papers, common traps, glossary, next.
+
+The prompt bans invented citations — unverified rows get tagged `(verify)` instead of quietly passing as real.
+
+Then ship it:
+
+```bash
+inkship langgraph-path.md --pack --open
+```
+
 ## Install
 
 ```bash
@@ -88,6 +129,15 @@ inkship guide.md --no-cover --no-toc
 | `--json` | Summary on stdout (agents/CI) |
 | `--chrome <path>` | Browser binary |
 
+### `learn` flags
+
+| Flag | Effect |
+|------|--------|
+| `--level <x>` | `basic` \| `intermediate` \| `advanced` \| `expert` (default: intermediate) |
+| `--depth <x>` | `quick` \| `standard` \| `deep` (default: standard) |
+| `-o <dir\|file>` | Where to write both files |
+| `--ship` / `--open` | Render the scaffold right away |
+
 ### Frontmatter (optional)
 
 ```markdown
@@ -124,7 +174,9 @@ Skill embeds a **terse reply style** (no fluff) for status lines — never annou
 inkship/
 ├── bin/inkship
 ├── scripts/
-│   ├── inkship.mjs
+│   ├── inkship.mjs    # render pipeline
+│   ├── learn.mjs      # learning path scaffold + prompt
+│   ├── check.mjs      # self-check: node scripts/check.mjs
 │   └── theme.css      # visual theme — keep
 ├── skill/SKILL.md     # Cursor skill + terse voice
 ├── examples/sample.md

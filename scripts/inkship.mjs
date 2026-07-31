@@ -31,6 +31,7 @@ function log(msg) {
 
 function usage(code = 1) {
   console.error(`inkship <file.md|dir> [options]
+inkship learn "<topic>" [--level x] [--depth y]
 
 Ship Markdown as share-ready docs. Default: polished PDF.
 
@@ -60,11 +61,11 @@ Output:
   process.exit(code);
 }
 
-function parseArgs(argv) {
-  const opts = {
+function defaultOpts() {
+  return {
     input: null,
     output: null,
-    format: null, // set after flags
+    format: null, // resolved by normalizeFormat
     wantPdf: false,
     wantHtml: false,
     subtitle: "",
@@ -79,6 +80,31 @@ function parseArgs(argv) {
     chrome: null,
     json: false,
   };
+}
+
+function normalizeFormat(opts) {
+  if (opts.format) {
+    if (!["pdf", "html", "pack"].includes(opts.format)) {
+      log("Bad format. Use pdf | html | pack");
+      process.exit(1);
+    }
+    opts.wantPdf = opts.format === "pdf" || opts.format === "pack";
+    opts.wantHtml = opts.format === "html" || opts.format === "pack";
+  } else if (!opts.wantPdf && !opts.wantHtml) {
+    opts.wantPdf = true;
+    opts.format = "pdf";
+  } else if (opts.wantPdf && opts.wantHtml) {
+    opts.format = "pack";
+  } else if (opts.wantHtml) {
+    opts.format = "html";
+  } else {
+    opts.format = "pdf";
+  }
+  return opts;
+}
+
+function parseArgs(argv) {
+  const opts = defaultOpts();
 
   const args = argv.slice(2);
   for (let i = 0; i < args.length; i++) {
@@ -115,26 +141,7 @@ function parseArgs(argv) {
   }
 
   if (!opts.input) usage(1);
-
-  if (opts.format) {
-    if (!["pdf", "html", "pack"].includes(opts.format)) {
-      log("Bad format. Use pdf | html | pack");
-      process.exit(1);
-    }
-    opts.wantPdf = opts.format === "pdf" || opts.format === "pack";
-    opts.wantHtml = opts.format === "html" || opts.format === "pack";
-  } else if (!opts.wantPdf && !opts.wantHtml) {
-    opts.wantPdf = true;
-    opts.format = "pdf";
-  } else if (opts.wantPdf && opts.wantHtml) {
-    opts.format = "pack";
-  } else if (opts.wantHtml) {
-    opts.format = "html";
-  } else {
-    opts.format = "pdf";
-  }
-
-  return opts;
+  return normalizeFormat(opts);
 }
 
 function ensureDeps() {
@@ -277,13 +284,16 @@ function injectAutoToc(md, enabled) {
     "",
   ];
 
-  // After first H1 block (title + optional blurb)
+  // Land the TOC after the title and its intro paragraph, before the first section
   const lines = md.split(/\r?\n/);
   let insertAt = 0;
   if (/^#\s+/.test(lines[0] || "")) {
     insertAt = 1;
-    while (insertAt < lines.length && lines[insertAt].trim() !== "") insertAt++;
     while (insertAt < lines.length && lines[insertAt].trim() === "") insertAt++;
+    if (insertAt < lines.length && !/^#{1,6}\s/.test(lines[insertAt])) {
+      while (insertAt < lines.length && lines[insertAt].trim() !== "") insertAt++;
+      while (insertAt < lines.length && lines[insertAt].trim() === "") insertAt++;
+    }
   }
   lines.splice(insertAt, 0, ...tocLines);
   return lines.join("\n");
@@ -576,8 +586,7 @@ function resolveOutputBase(filePath, opts) {
   return out;
 }
 
-async function main() {
-  const opts = parseArgs(process.argv);
+async function ship(opts) {
   const input = path.resolve(opts.input);
   if (!fs.existsSync(input)) {
     log("Missing: " + input);
@@ -632,9 +641,31 @@ async function main() {
       last.files.find((f) => f.endsWith(".html"));
     if (openTarget) openPath(openTarget);
   }
+
+  return results;
 }
 
-main().catch((err) => {
-  log(String(err && err.stack ? err.stack.split("\n")[0] : err));
-  process.exit(1);
-});
+/** Programmatic entry, used by `inkship learn --ship`. */
+export async function shipFiles(input, overrides = {}) {
+  return ship(normalizeFormat({ ...defaultOpts(), ...overrides, input }));
+}
+
+async function main() {
+  if (process.argv[2] === "learn") {
+    const { runLearn } = await import("./learn.mjs");
+    return runLearn(process.argv.slice(3));
+  }
+  return ship(parseArgs(process.argv));
+}
+
+export { slugify, parseFrontmatter, polishMarkdown, injectAutoToc };
+
+const invokedDirectly =
+  process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
+
+if (invokedDirectly) {
+  main().catch((err) => {
+    log(String(err && err.stack ? err.stack.split("\n")[0] : err));
+    process.exit(1);
+  });
+}

@@ -16,7 +16,7 @@ if [[ $# -lt 1 ]]; then
   echo "  inkship notes.md" >&2
   echo "  inkship guide.md --pack --open" >&2
   echo "  inkship docs/ --pdf" >&2
-  echo "  inkship dump.md --html --no-cover" >&2
+  echo "  inkship learn \"LangGraph\" --level advanced --depth deep" >&2
   echo "" >&2
   exec node "$SCRIPT" --help
 fi

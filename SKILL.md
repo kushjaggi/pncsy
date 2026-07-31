@@ -43,6 +43,27 @@ node "$HOME/.cursor/skills/inkship/scripts/inkship.mjs" "/absolute/path/to/file.
 | HTML | `--html` |
 | Both | `--pack` |
 
+## Learning paths
+
+User wants to learn a topic, wants a roadmap, syllabus, study plan, or "where do I start":
+
+```bash
+inkship learn "<topic>" --level basic|intermediate|advanced|expert --depth quick|standard|deep
+```
+
+Writes two files: `<slug>-path.md` (fixed-structure scaffold) and `<slug>-path.prompt.md` (the fill prompt, editable).
+
+Then:
+
+1. Read the `.prompt.md`. It carries the parameters and rules for this run.
+2. Fill `<slug>-path.md` in place. Keep every heading and its order. Replace italic placeholders and example rows. Delete the HTML comments as you fill them.
+3. Never invent a title, author, or URL. Unsure means append `(verify)` to that row.
+4. Ship it: `inkship "<slug>-path.md" --pack --open`.
+
+Defaults: level `intermediate`, depth `standard`. Ladder runs from basic up to the target level. Papers section appears on `deep`, or when target is advanced or expert.
+
+If the user edits the prompt file, re-fill from the edited prompt — do not regenerate the scaffold unless level or depth changed.
+
 ## Out-of-box behavior
 
 - Polish chat fluff at top of file
@@ -77,3 +98,8 @@ User: ship this md as pdf
 User: need pdf and html  
 → `inkship "/abs/guide.md" --pack`  
 → `Pack ready. PDF + HTML beside source.`
+
+User: teach me Kafka from scratch  
+→ `inkship learn "Kafka" --level advanced --depth deep`  
+→ fill scaffold from prompt → `inkship "/abs/kafka-path.md" --pack`  
+→ `Path filled, 3 levels. PDF /abs/kafka-path.pdf.`
