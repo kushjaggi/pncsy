@@ -672,8 +672,17 @@ async function main() {
 
 export { slugify, parseFrontmatter, polishMarkdown, injectAutoToc };
 
-const invokedDirectly =
-  process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
+const invokedDirectly = (() => {
+  if (!process.argv[1]) return false;
+  try {
+    return (
+      fs.realpathSync.native(process.argv[1]) ===
+      fs.realpathSync.native(fileURLToPath(import.meta.url))
+    );
+  } catch {
+    return path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+  }
+})();
 
 if (invokedDirectly) {
   main().catch((err) => {
