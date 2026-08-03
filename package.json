@@ -39,7 +39,7 @@
     "windsurf",
     "copilot"
   ],
-  "author": "kushjaggi (https://github.com/kushjaggi)",
+  "author": "kushjaggi <https://github.com/kushjaggi>",
   "license": "MIT",
   "engines": {
     "node": ">=18"
