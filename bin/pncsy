@@ -3,7 +3,18 @@
 # Structured learning paths + share-ready docs from Markdown.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ -n "${PNCSY_HOME:-}" ]]; then
+  ROOT="$PNCSY_HOME"
+else
+  SOURCE="${BASH_SOURCE[0]:-$0}"
+  while [[ -h "$SOURCE" ]]; do
+    DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+  done
+  ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+fi
+
 SCRIPT="$ROOT/scripts/pncsy.mjs"
 
 if [[ ! -f "$SCRIPT" ]]; then

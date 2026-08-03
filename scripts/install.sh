@@ -73,9 +73,20 @@ fi
 [[ -f "$INSTALL_DIR/bin/pncsy" ]] || die "install incomplete"
 
 chmod +x "$INSTALL_DIR/bin/pncsy"
-ln -sf "$INSTALL_DIR/bin/pncsy" "$BIN_DIR/pncsy"
-ln -sf "$INSTALL_DIR/bin/pncsy" "$BIN_DIR/inkship" 2>/dev/null || true
-ln -sf "$INSTALL_DIR/bin/pncsy" "$BIN_DIR/mdpdf" 2>/dev/null || true
+
+write_wrapper() {
+  local name="$1"
+  cat > "$BIN_DIR/$name" <<EOF
+#!/usr/bin/env bash
+export PNCSY_HOME="$INSTALL_DIR"
+exec "\$PNCSY_HOME/bin/pncsy" "\$@"
+EOF
+  chmod +x "$BIN_DIR/$name"
+}
+
+write_wrapper pncsy
+write_wrapper inkship
+write_wrapper mdpdf
 
 echo ""
 echo "✓ pncsy installed → $BIN_DIR/pncsy"

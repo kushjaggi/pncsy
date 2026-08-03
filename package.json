@@ -1,6 +1,6 @@
 {
   "name": "pncsy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Prompting nahi, coding sikho — structured learning paths + share-ready PDF/HTML from Markdown. CLI: pncsy",
   "type": "module",
   "bin": {
