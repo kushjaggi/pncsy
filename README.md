@@ -24,22 +24,28 @@ Turn messy agent Markdown and vague “teach me X” prompts into **structured l
 ## Quick start
 
 ```bash
-git clone https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna.git
-cd prompting-nahi-coding-sikho-yojna
-npm install
-npm link          # installs `pncsy` (+ full package name)
+npm install -g pncsy
+
+pncsy learn "LangGraph" --level advanced --depth deep
+# agent fills the .md using the .prompt.md
+pncsy langgraph-path.md --pack --open
 ```
 
-**Requirements:** Node 18+, Chrome/Chromium/Edge (for PDF).
+**Requirements:** Node 18+, Chrome/Chromium/Edge (for PDF). No clone needed.
+
+### Install options
 
 ```bash
-# 1. Learning path scaffold + fill prompt
-pncsy learn "LangGraph" --level advanced --depth deep
+# global CLI (recommended)
+npm install -g pncsy
 
-# 2. Agent fills the .md using the .prompt.md (in Cursor, Claude, etc.)
+# one-off, no install
+npx pncsy learn "Kafka" --level intermediate
+npx pncsy README.md --pack
 
-# 3. Ship as PDF + HTML
-pncsy langgraph-path.md --pack --open
+# from source / contributors
+git clone https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna.git
+cd prompting-nahi-coding-sikho-yojna && npm install && npm link
 ```
 
 <p align="center">
@@ -57,7 +63,7 @@ pncsy langgraph-path.md --pack --open
 - **Two files every run:**
   - `<topic>-path.md` — scaffold with every section in the same order
   - `<topic>-path.prompt.md` — the prompt your agent uses to fill it (editable)
-- **No API keys** — your Cursor/Claude agent fills content; prompt bans invented citations (`(verify)` tag)
+- **No API keys** — your AI agent fills content; prompt bans invented citations (`(verify)` tag)
 - **Configurable structure** — `pncsy learn --init-config` → edit `pncsy.learn.json`
 - **Safe re-runs** — existing path/prompt kept unless `--force`
 
@@ -111,10 +117,10 @@ pncsy learn "Kafka" --level advanced --depth deep -o ./plans
 | `standard` | 5 | 3 | Advanced+ only |
 | `deep` | 8 | 5 | Yes |
 
-### Step 2 — Fill with your agent (Cursor)
+### Step 2 — Fill with your AI agent
 
 1. Open `kafka-path.prompt.md` — rules, parameters, section checklist
-2. Tell Cursor: *fill `kafka-path.md` using the prompt file; keep every heading; tag uncertain links `(verify)`*
+2. Tell your agent: *fill `kafka-path.md` using the prompt file; keep every heading; tag uncertain links `(verify)`*
 3. **Edit the prompt** anytime — re-fill from your edited prompt (your edits win)
 
 ### Step 3 — Ship
@@ -201,18 +207,33 @@ Tokens: `{{topic}}`, `{{levelTitle}}`, `{{n}}`, `{{concepts}}`, `{{resources}}`,
 
 ---
 
-## Cursor / agent setup
+## AI editor setup
+
+`pncsy` is **editor-agnostic**. Install once, wire into whatever agent you use:
 
 ```bash
-ln -s "$(pwd)" ~/.cursor/skills/pncsy
-ln -sf "$(pwd)/bin/pncsy" ~/.local/bin/pncsy
+npm install -g pncsy
 ```
 
-Then say to any agent:
+| Editor | Skill / rules location |
+|--------|------------------------|
+| **Cursor** | `~/.cursor/skills/pncsy` → symlink from npm package |
+| **Claude Code** | `~/.claude/skills/pncsy` |
+| **Windsurf** | `~/.codeium/windsurf/skills/pncsy` or Memories |
+| **Cline / Roo** | `.clinerules` / `.roorules` + `AGENTS.md` |
+| **Copilot** | `.github/copilot-instructions.md` |
+| **Any other** | Put `AGENTS.md` in project root |
 
-- *make me a learning path for Rust at advanced depth*
-- *ship this md as pdf*
-- *pncsy learn "System Design" --depth deep*
+**Quick install (after `npm install -g pncsy`):**
+
+```bash
+ln -sfn "$(npm root -g)/pncsy/skill" ~/.cursor/skills/pncsy   # Cursor
+ln -sfn "$(npm root -g)/pncsy/skill" ~/.claude/skills/pncsy   # Claude Code
+```
+
+Full per-editor steps: **[skill/INSTALL.md](skill/INSTALL.md)**
+
+No skills folder? Just install the CLI and point your agent at **`AGENTS.md`** in this repo — it tells any agent when and how to run `pncsy`.
 
 Compat aliases: `inkship`, `mdpdf` → both call `pncsy`.
 
@@ -234,7 +255,10 @@ prompting-nahi-coding-sikho-yojna/
 ├── examples/
 │   ├── sample.md
 │   └── demo/                 # Generated LangGraph demo path
-├── skill/SKILL.md            # Cursor agent skill
+├── AGENTS.md                 # Universal agent instructions (any editor)
+├── skill/
+│   ├── SKILL.md              # Agent skill (Cursor, Claude, etc.)
+│   └── INSTALL.md            # Per-editor install steps
 └── README.md
 ```
 
