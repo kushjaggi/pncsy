@@ -265,4 +265,4 @@ Writes PNGs to `docs/screenshots/` from live HTML output.
 
 ## License
 
-MIT · [Kush](https://github.com/kushjaggi)
+MIT · [kushjaggi](https://github.com/kushjaggi)
