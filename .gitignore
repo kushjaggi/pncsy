@@ -4,4 +4,5 @@ package-lock.json
 *.pdf
 *.html
 !examples/**/*.md
+docs/screenshots/_cli.html
 .env

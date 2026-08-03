@@ -17,6 +17,7 @@
   "scripts": {
     "pncsy": "node ./scripts/pncsy.mjs",
     "check": "node ./scripts/check.mjs",
+    "screenshots": "node ./scripts/capture-screenshots.mjs",
     "postinstall": "node -e \"console.error('pncsy ready. Try: pncsy learn \\\"Kafka\\\" --level advanced')\""
   },
   "keywords": [

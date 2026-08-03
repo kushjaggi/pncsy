@@ -1,196 +1,268 @@
 # prompting-nahi-coding-sikho-yojna
 
-**Prompting nahi, coding sikho.** Short name: `pncsy`.
+**Prompting nahi, coding sikho.**  
+Short command: **`pncsy`**
 
-Two problems, one tool:
+Turn messy agent Markdown and vague “teach me X” prompts into **structured learning paths** and **share-ready PDF/HTML** — same shape every time, teal print theme, zero project bloat.
 
-1. **You prompt your way to a study plan.** Every run comes back a different shape, half the links are invented, nothing is reusable.
-2. **Your agent dumps a long `.md`.** You forward it raw. Looks amateur, diagrams stay as code, no cover, no contents page.
-
-```bash
-pncsy learn "LangGraph" --level advanced --depth deep   # structured path
-pncsy tutorial.md --pack --open                          # share-ready PDF + HTML
-```
+<p align="center">
+  <img src="docs/screenshots/cover-page.png" alt="PDF cover page with title, subtitle, and topic chips" width="720">
+</p>
 
 ---
 
-## Learning paths
+## Why this exists
 
-```bash
-pncsy learn "LangGraph" --level advanced --depth deep
-```
+| Problem | What happens today | What `pncsy` does |
+|---------|-------------------|-------------------|
+| **Prompt lottery** | Every “make me a roadmap” returns a different shape; links get invented | Fixed ladder + sections + editable fill prompt |
+| **Ugly AI dumps** | Long `.md` forwarded raw — no cover, broken diagrams, no TOC | Polish fluff → cover → auto TOC → Mermaid → PDF/HTML |
+| **Project pollution** | Tools want `npm install` in *your* repo | All deps live inside this package only |
 
-Writes two files:
-
-| File | What |
-|------|------|
-| `langgraph-path.md` | Fixed-structure scaffold, ready to fill |
-| `langgraph-path.prompt.md` | The prompt that fills it — yours to edit |
-
-Hand both to your agent (Cursor, Claude, whatever). It fills the scaffold using the prompt. No API key, no lock-in.
-
-The prompt is the steering wheel: edit it, re-fill, get a different plan from the same structure. Re-running `learn` will not clobber an edited prompt or a filled path — existing files are kept unless you pass `--force`.
-
-**Levels** — ladder runs from basic up to your target:
-
-`basic` → `intermediate` → `advanced` → `expert`
-
-**Depth** — how much per level:
-
-| Depth | Concepts/level | Resources | Papers |
-|-------|----------------|-----------|--------|
-| `quick` | 3 | 2 | no |
-| `standard` | 5 | 3 | advanced+ only |
-| `deep` | 8 | 5 | yes |
-
-**Every path has the same sections**, so two topics are comparable and nothing gets skipped: snapshot, prerequisites with self-checks, the level ladder (goals, concepts, resources, one hands-on task), videos and courses, research papers, common traps, glossary, next.
-
-The prompt bans invented citations — unverified rows get tagged `(verify)` instead of quietly passing as real.
-
-Then ship it:
-
-```bash
-pncsy langgraph-path.md --pack --open
-```
-
-### Configure the structure
-
-The sections, the level names, the depth sizing and the prompt rules all come from config. Dump an editable copy:
-
-```bash
-pncsy learn --init-config      # writes pncsy.learn.json
-```
-
-Loaded from `--config <file>`, else `./pncsy.learn.json`, else `~/.config/pncsy/learn.json`, else built-in.
-
-```jsonc
-{
-  "levels": ["beginner", "working", "deep-expert"],   // rename or resize the ladder
-  "depths": { "standard": { "concepts": 6 } },        // retune one depth, rest untouched
-  "kicker": "Syllabus",
-  "sections": [                                       // replaces the section list wholesale
-    { "id": "interview", "title": "Interview questions", "body": "| Q | A |\n|---|---|\n| _q_ | _a_ |" }
-  ],
-  "promptRules": ["..."]                              // the rules baked into every prompt
-}
-```
-
-Section keys: `title`, `note` (HTML comment, invisible in the PDF), `body`, `repeat: "levels"` to emit one block per level, and `when: { depths, minLevel, excludeDepths }` to gate it. Tokens `{{topic}} {{levelTitle}} {{n}} {{concepts}} {{resources}} {{traps}} {{glossary}} {{ladder}}` interpolate anywhere.
-
-Partial configs merge with the defaults, except `sections`, which replaces the list so you stay in control of order.
-
-## Shipping Markdown
-
-| Pain | Out of the box |
-|------|----------------|
-| Chatty AI openings in the file | Stripped (`--no-polish` to keep) |
-| No structure for sharing | Cover from `#` title + optional chips |
-| Long docs, no TOC | Auto TOC when ≥3 `##` headings |
-| Mermaid stays code | Rendered into PDF/HTML |
-| “I need PDF *and* a web copy” | `--pack` |
-| Folder of notes | Pass a directory — ships every `.md` |
-
-Formats: **PDF** (default) · **HTML** · **pack** (both). Theme: `scripts/theme.css`.
-
-```bash
-pncsy notes.md                 # PDF
-pncsy notes.md --html          # styled HTML
-pncsy notes.md --pack          # PDF + HTML
-pncsy docs/                    # every .md in folder
-
-pncsy guide.md \
-  --subtitle "Share-ready walkthrough" \
-  --chips "Setup,Usage,Ship" \
-  --kicker "Tutorial" \
-  --open
-```
-
-### Frontmatter (optional)
-
-```markdown
 ---
-title: LangGraph from Zero
-subtitle: Beginner walkthrough
-kicker: Tutorial
-chips: [State, Edges, Tools]
-format: pack
----
-```
 
-CLI flags win over frontmatter when both set.
-
-## Install
+## Quick start
 
 ```bash
 git clone https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna.git
 cd prompting-nahi-coding-sikho-yojna
 npm install
-npm link          # installs both `pncsy` and the full name
+npm link          # installs `pncsy` (+ full package name)
 ```
 
-Or symlink just the short command:
+**Requirements:** Node 18+, Chrome/Chromium/Edge (for PDF).
 
 ```bash
-ln -sf "$(pwd)/bin/pncsy" ~/.local/bin/pncsy
+# 1. Learning path scaffold + fill prompt
+pncsy learn "LangGraph" --level advanced --depth deep
+
+# 2. Agent fills the .md using the .prompt.md (in Cursor, Claude, etc.)
+
+# 3. Ship as PDF + HTML
+pncsy langgraph-path.md --pack --open
 ```
 
-### Requirements
+<p align="center">
+  <img src="docs/screenshots/cli-demo.png" alt="Terminal showing pncsy learn and pncsy ship commands" width="640">
+</p>
 
-- Node 18+
-- Chrome / Chromium / Edge (auto-detected; override with `--chrome` or `CHROME_PATH`)
+---
 
-## Flags
+## Features at a glance
 
-### Shipping
+### Learning paths (`pncsy learn`)
+
+- **Fixed levels:** `basic` → `intermediate` → `advanced` → `expert` (ladder stops at your target)
+- **Depth modes:** `quick` | `standard` | `deep` (controls concepts, resources, traps, glossary per level)
+- **Two files every run:**
+  - `<topic>-path.md` — scaffold with every section in the same order
+  - `<topic>-path.prompt.md` — the prompt your agent uses to fill it (editable)
+- **No API keys** — your Cursor/Claude agent fills content; prompt bans invented citations (`(verify)` tag)
+- **Configurable structure** — `pncsy learn --init-config` → edit `pncsy.learn.json`
+- **Safe re-runs** — existing path/prompt kept unless `--force`
+
+**Sections in every path:** Snapshot · Prerequisites (with self-checks) · Level ladder (goals, concepts, resources, hands-on task) · Videos & courses · Research papers (when depth/level warrants) · Common traps · Glossary · Next
+
+### Document shipping (`pncsy <file.md>`)
+
+- **Formats:** PDF (default) · HTML · `--pack` (both)
+- **AI-dump polish** — strips chatty openings (`--no-polish` to keep raw)
+- **Cover page** — from `#` title + optional subtitle, chips, kicker (`--no-cover` to skip)
+- **Auto table of contents** — when ≥3 `##` headings (`--no-toc` to skip)
+- **Mermaid diagrams** — rendered in PDF/HTML, not left as code fences
+- **YAML frontmatter** — title, subtitle, chips, `format: pack`, etc.
+- **Batch** — pass a directory; ships every `.md`
+- **Agent-friendly** — `--json` for machine-readable output
+
+<p align="center">
+  <img src="docs/screenshots/content-page.png" alt="Styled document body with headings and callouts" width="720">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mermaid-diagram.png" alt="Rendered Mermaid flowchart in the document" width="560">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/toc-and-tables.png" alt="Table of contents box and styled tables" width="360">
+</p>
+
+---
+
+## How to: learning path (step by step)
+
+### Step 1 — Generate scaffold + prompt
+
+```bash
+pncsy learn "Kafka" --level advanced --depth deep -o ./plans
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--level` | Target rung: `basic` \| `intermediate` \| `advanced` \| `expert` |
+| `--depth` | How much per level: `quick` \| `standard` \| `deep` |
+| `-o` | Output directory or file base |
+| `--init-config` | Write `pncsy.learn.json` to customize sections/levels |
+| `--force` | Overwrite existing path/prompt files |
+| `--ship` / `--open` | Render PDF immediately after scaffold |
+
+**Depth sizing:**
+
+| Depth | Concepts/level | Resources | Papers section |
+|-------|----------------|-----------|----------------|
+| `quick` | 3 | 2 | No |
+| `standard` | 5 | 3 | Advanced+ only |
+| `deep` | 8 | 5 | Yes |
+
+### Step 2 — Fill with your agent (Cursor)
+
+1. Open `kafka-path.prompt.md` — rules, parameters, section checklist
+2. Tell Cursor: *fill `kafka-path.md` using the prompt file; keep every heading; tag uncertain links `(verify)`*
+3. **Edit the prompt** anytime — re-fill from your edited prompt (your edits win)
+
+### Step 3 — Ship
+
+```bash
+pncsy plans/kafka-path.md --pack --open
+```
+
+Gets styled **PDF + HTML** beside the source file.
+
+---
+
+## How to: ship any Markdown
+
+```bash
+# PDF only
+pncsy README.md
+
+# HTML only
+pncsy guide.md --html
+
+# Both
+pncsy guide.md --pack
+
+# Custom cover
+pncsy guide.md \
+  --subtitle "Team onboarding" \
+  --chips "Setup,API,Deploy" \
+  --kicker "Internal doc" \
+  --open
+
+# Whole folder
+pncsy docs/
+
+# Frontmatter in the .md (CLI flags override)
+```
+
+```yaml
+---
+title: My Doc
+subtitle: Share-ready version
+chips: [API, Auth, Deploy]
+format: pack
+---
+```
 
 | Flag | Effect |
 |------|--------|
-| `--pdf` / `--html` / `--pack` | Output type(s) |
-| `-f, --format pdf\|html\|pack` | Same |
-| `-o, --output <path>` | File base or directory |
-| `--subtitle` `--kicker` `--chips` `--meta` | Cover |
-| `--no-cover` `--no-toc` `--no-polish` | Turn off defaults |
-| `--no-html-keep` | Drop intermediate HTML after PDF |
-| `--open` | Open result |
-| `--json` | Summary on stdout (agents/CI) |
-| `--chrome <path>` | Browser binary |
+| `--no-polish` | Keep AI chat fluff at top |
+| `--no-cover` | Skip cover page |
+| `--no-toc` | Skip auto TOC |
+| `--no-html-keep` | Delete intermediate HTML after PDF |
+| `--json` | Print `{ ok, results }` on stdout |
+| `--chrome <path>` | Override browser binary |
 
-### `learn`
+---
 
-| Flag | Effect |
-|------|--------|
-| `--level <x>` | `basic` \| `intermediate` \| `advanced` \| `expert` (default: intermediate) |
-| `--depth <x>` | `quick` \| `standard` \| `deep` (default: standard) |
-| `-o <dir\|file>` | Where to write both files |
-| `--config <file>` | Use a specific config |
-| `--init-config` | Write an editable `pncsy.learn.json` |
-| `--force` | Overwrite existing path/prompt/config (default: keep your edits) |
-| `--ship` / `--open` | Render the scaffold right away |
+## Configure the learning path structure
 
-## Cursor agents
+```bash
+pncsy learn --init-config    # creates pncsy.learn.json
+```
+
+Lookup order: `--config <file>` → `./pncsy.learn.json` → `~/.config/pncsy/learn.json` → built-in defaults.
+
+```jsonc
+{
+  "levels": ["beginner", "working", "expert"],
+  "depths": { "standard": { "concepts": 6 } },
+  "kicker": "Syllabus",
+  "sections": [
+    {
+      "id": "interview",
+      "title": "Interview questions",
+      "body": "| Q | A |\n|---|---|\n| _q_ | _a_ |"
+    }
+  ],
+  "promptRules": ["Your custom fill rules here."]
+}
+```
+
+Section options: `title`, `note`, `body`, `repeat: "levels"`, `when: { depths, minLevel, excludeDepths }`.  
+Tokens: `{{topic}}`, `{{levelTitle}}`, `{{n}}`, `{{concepts}}`, `{{resources}}`, `{{traps}}`, `{{glossary}}`, `{{ladder}}`.
+
+---
+
+## Cursor / agent setup
 
 ```bash
 ln -s "$(pwd)" ~/.cursor/skills/pncsy
+ln -sf "$(pwd)/bin/pncsy" ~/.local/bin/pncsy
 ```
 
-Then: *make me a learning path for Kafka* · *ship this md* · *export as pdf*.
+Then say to any agent:
 
-## Layout
+- *make me a learning path for Rust at advanced depth*
+- *ship this md as pdf*
+- *pncsy learn "System Design" --depth deep*
+
+Compat aliases: `inkship`, `mdpdf` → both call `pncsy`.
+
+---
+
+## Project layout
 
 ```
 prompting-nahi-coding-sikho-yojna/
-├── bin/pncsy
+├── bin/pncsy                 # CLI entry
 ├── scripts/
-│   ├── pncsy.mjs          # render pipeline
-│   ├── learn.mjs          # learning path scaffold + prompt
-│   ├── learn.default.mjs  # default structure config
-│   ├── check.mjs          # self-check: npm run check
-│   └── theme.css          # visual theme
-├── skill/SKILL.md         # Cursor skill
-├── examples/sample.md
+│   ├── pncsy.mjs             # Markdown → PDF/HTML renderer
+│   ├── learn.mjs             # Learning path generator
+│   ├── learn.default.mjs     # Default structure config
+│   ├── capture-screenshots.mjs
+│   ├── check.mjs             # npm run check
+│   └── theme.css             # Print theme (teal cover, serif body)
+├── docs/screenshots/         # README images
+├── examples/
+│   ├── sample.md
+│   └── demo/                 # Generated LangGraph demo path
+├── skill/SKILL.md            # Cursor agent skill
 └── README.md
 ```
 
+---
+
+## Commands reference
+
+```bash
+pncsy <file.md|dir> [options]          # ship docs
+pncsy learn "<topic>" [options]        # learning path
+pncsy learn --init-config              # write config template
+npm run check                          # run self-tests
+node scripts/capture-screenshots.mjs   # regenerate README images
+```
+
+---
+
+## Regenerate screenshots (maintainers)
+
+```bash
+npm install
+node scripts/capture-screenshots.mjs
+```
+
+Writes PNGs to `docs/screenshots/` from live HTML output.
+
+---
+
 ## License
 
-MIT
+MIT · [Kush](https://github.com/kushjaggi)
