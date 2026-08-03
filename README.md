@@ -1,5 +1,8 @@
 # prompting-nahi-coding-sikho-yojna
 
+[![npm](https://img.shields.io/npm/v/pncsy?label=npm)](https://www.npmjs.com/package/pncsy)
+[![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-pncsy-24292f?logo=github)](https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna/packages)
+
 **Prompting nahi, coding sikho.**  
 Short command: **`pncsy`**
 
@@ -36,8 +39,11 @@ pncsy langgraph-path.md --pack --open
 ### Install options
 
 ```bash
-# global CLI (recommended)
+# npm (recommended) — short name
 npm install -g pncsy
+
+# GitHub Packages — shows under repo → Packages tab
+npm install -g @kushjaggi/pncsy --registry=https://npm.pkg.github.com
 
 # one-off, no install
 npx pncsy learn "Kafka" --level intermediate
@@ -46,6 +52,15 @@ npx pncsy README.md --pack
 # from source / contributors
 git clone https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna.git
 cd prompting-nahi-coding-sikho-yojna && npm install && npm link
+```
+
+**GitHub Packages one-time setup** (for `@kushjaggi/pncsy`):
+
+```bash
+# ~/.npmrc
+echo "@kushjaggi:registry=https://npm.pkg.github.com" >> ~/.npmrc
+echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc
+npm install -g @kushjaggi/pncsy
 ```
 
 <p align="center">

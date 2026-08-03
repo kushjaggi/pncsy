@@ -53,6 +53,10 @@
     "type": "git",
     "url": "git+https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna.git"
   },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
   "bugs": {
     "url": "https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna/issues"
   },
