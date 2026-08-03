@@ -6,7 +6,7 @@ description: >-
   auto TOC and Mermaid. Works in any AI coding editor (Cursor, Claude Code,
   Windsurf, Cline, Copilot, etc.). Use when the user wants a learning path,
   roadmap, syllabus, study plan, or says pncsy, ship this md, export markdown
-  to PDF/HTML. Install via npm install -g pncsy. Never add marked/puppeteer/mermaid
+  to PDF/HTML. Install via curl install.sh or npm install -g pncsy. Never add marked/puppeteer/mermaid
   to the user's project.
 ---
 
@@ -16,7 +16,7 @@ description: >-
 
 Editor-agnostic. Same workflow in Cursor, Claude Code, Windsurf, Cline, Copilot, or any agent with shell access.
 
-Install: `npm install -g pncsy` · Editor setup: [INSTALL.md](INSTALL.md) · Repo rules: [AGENTS.md](../AGENTS.md)
+Install: `curl -fsSL …/scripts/install.sh | bash` or `npm install -g pncsy` · Editor setup: [INSTALL.md](INSTALL.md) · Repo rules: [AGENTS.md](../AGENTS.md)
 
 ## Run
 

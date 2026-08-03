@@ -2,7 +2,13 @@
 
 Works with any agent that can run shell commands and read project instructions.
 
-**Prerequisite:** `npm install -g pncsy` (or use `npx pncsy`).
+**Prerequisite:** Node 18+. Install CLI (pick one):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
+# or: npm install -g pncsy
+# or: npx pncsy …
+```
 
 After install, symlink or copy this repo's `skill/` folder (or just `SKILL.md`) into your editor's skills directory.
 
@@ -11,8 +17,10 @@ After install, symlink or copy this repo's `skill/` folder (or just `SKILL.md`) 
 ## Cursor
 
 ```bash
-npm install -g pncsy
-ln -sfn "$(npm root -g)/pncsy/skill" ~/.cursor/skills/pncsy
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
+ln -sfn ~/.local/share/pncsy/skill ~/.cursor/skills/pncsy
+# npm alternative:
+# ln -sfn "$(npm root -g)/pncsy/skill" ~/.cursor/skills/pncsy
 # or from a clone:
 ln -sfn ~/Projects/prompting-nahi-coding-sikho-yojna ~/.cursor/skills/pncsy
 ```
@@ -29,9 +37,9 @@ Never install marked/puppeteer/mermaid into the project. See AGENTS.md.
 ## Claude Code
 
 ```bash
-npm install -g pncsy
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
 mkdir -p ~/.claude/skills
-ln -sfn "$(npm root -g)/pncsy/skill" ~/.claude/skills/pncsy
+ln -sfn ~/.local/share/pncsy/skill ~/.claude/skills/pncsy
 ```
 
 Or add to project `CLAUDE.md`:
@@ -47,9 +55,9 @@ See AGENTS.md in this repo.
 ## Windsurf
 
 ```bash
-npm install -g pncsy
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
 mkdir -p ~/.codeium/windsurf/skills
-ln -sfn "$(npm root -g)/pncsy/skill" ~/.codeium/windsurf/skills/pncsy
+ln -sfn ~/.local/share/pncsy/skill ~/.codeium/windsurf/skills/pncsy
 ```
 
 Or paste `AGENTS.md` / `skill/SKILL.md` into Windsurf **Memories** or workspace rules.
@@ -58,7 +66,7 @@ Or paste `AGENTS.md` / `skill/SKILL.md` into Windsurf **Memories** or workspace 
 
 ## Cline / Roo Code / Continue
 
-1. `npm install -g pncsy`
+1. `curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash`
 2. Add to workspace `.clinerules`, `.roorules`, or Continue system prompt:
 
 ```text
@@ -83,7 +91,7 @@ Add to `.github/copilot-instructions.md` in your project:
 
 ## Generic / any editor
 
-1. Install CLI: `npm install -g pncsy`
+1. Install CLI: `curl -fsSL …/scripts/install.sh | bash` or `npm install -g pncsy`
 2. Put `AGENTS.md` in your project root (many agents auto-read it)
 3. Or copy `skill/SKILL.md` content into your editor's custom instructions / rules file
 
@@ -96,9 +104,9 @@ pncsy test-path.md --html
 
 ---
 
-## npm only (no skill file)
+## CLI only (no skill file)
 
-If your editor has no skills folder, **`npm install -g pncsy` is enough** — tell the agent:
+If your editor has no skills folder, **installing the CLI is enough** — tell the agent:
 
 > Use the `pncsy` CLI. Run `pncsy --help` and `pncsy learn --help`. Follow `AGENTS.md`.
 

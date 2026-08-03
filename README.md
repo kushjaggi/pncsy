@@ -27,25 +27,32 @@ Turn messy agent Markdown and vague “teach me X” prompts into **structured l
 ## Quick start
 
 ```bash
-npm install -g pncsy
+# lightweight — Node 18+ only, no npm
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
 
 pncsy learn "LangGraph" --level advanced --depth deep
 # agent fills the .md using the .prompt.md
 pncsy langgraph-path.md --pack --open
 ```
 
-**Requirements:** Node 18+, Chrome/Chromium/Edge (for PDF). No clone needed.
+**Requirements:** Node 18+, Chrome/Chromium/Edge (for PDF). No npm, no clone.
 
 ### Install options
 
 ```bash
-# npm (recommended) — short name
+# curl installer (recommended) — no npm
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
+
+# pin a version
+PNCSY_VERSION=1.0.0 curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
+
+# npm (if you already use it)
 npm install -g pncsy
 
-# GitHub Packages — shows under repo → Packages tab
+# GitHub Packages
 npm install -g @kushjaggi/pncsy --registry=https://npm.pkg.github.com
 
-# one-off, no install
+# one-off, no install (needs npm/npx)
 npx pncsy learn "Kafka" --level intermediate
 npx pncsy README.md --pack
 
@@ -53,6 +60,8 @@ npx pncsy README.md --pack
 git clone https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna.git
 cd prompting-nahi-coding-sikho-yojna && npm install && npm link
 ```
+
+Installs to `~/.local/share/pncsy` with `pncsy` on `~/.local/bin`. Override with `PNCSY_HOME` / `PNCSY_BIN`.
 
 **GitHub Packages one-time setup** (for `@kushjaggi/pncsy`):
 
@@ -227,23 +236,24 @@ Tokens: `{{topic}}`, `{{levelTitle}}`, `{{n}}`, `{{concepts}}`, `{{resources}}`,
 `pncsy` is **editor-agnostic**. Install once, wire into whatever agent you use:
 
 ```bash
-npm install -g pncsy
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
+# or: npm install -g pncsy
 ```
 
 | Editor | Skill / rules location |
 |--------|------------------------|
-| **Cursor** | `~/.cursor/skills/pncsy` → symlink from npm package |
+| **Cursor** | `~/.cursor/skills/pncsy` → symlink from install dir |
 | **Claude Code** | `~/.claude/skills/pncsy` |
 | **Windsurf** | `~/.codeium/windsurf/skills/pncsy` or Memories |
 | **Cline / Roo** | `.clinerules` / `.roorules` + `AGENTS.md` |
 | **Copilot** | `.github/copilot-instructions.md` |
 | **Any other** | Put `AGENTS.md` in project root |
 
-**Quick install (after `npm install -g pncsy`):**
+**Quick install (after curl or npm install):**
 
 ```bash
-ln -sfn "$(npm root -g)/pncsy/skill" ~/.cursor/skills/pncsy   # Cursor
-ln -sfn "$(npm root -g)/pncsy/skill" ~/.claude/skills/pncsy   # Claude Code
+ln -sfn ~/.local/share/pncsy/skill ~/.cursor/skills/pncsy   # curl install
+ln -sfn "$(npm root -g)/pncsy/skill" ~/.cursor/skills/pncsy # npm install
 ```
 
 Full per-editor steps: **[skill/INSTALL.md](skill/INSTALL.md)**

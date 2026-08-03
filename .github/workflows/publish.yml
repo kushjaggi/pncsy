@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   id-token: write
 
@@ -55,3 +55,35 @@ jobs:
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  bundle-release:
+    name: Standalone bundle (no npm install)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm ci --omit=dev || npm install --omit=dev
+
+      - name: Build tarballs
+        id: bundle
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          tar czf "pncsy-${VER}.tar.gz" bin scripts skill AGENTS.md README.md LICENSE package.json node_modules
+          tar czf "pncsy-${VER}-deps.tar.gz" node_modules
+
+      - name: Upload GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.bundle.outputs.version }}
+          name: v${{ steps.bundle.outputs.version }}
+          files: |
+            pncsy-${{ steps.bundle.outputs.version }}.tar.gz
+            pncsy-${{ steps.bundle.outputs.version }}-deps.tar.gz
+          generate_release_notes: true
+          make_latest: true

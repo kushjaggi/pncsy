@@ -147,14 +147,26 @@ function parseArgs(argv) {
 function ensureDeps() {
   const marker = path.join(ROOT, "node_modules", "marked", "package.json");
   if (fs.existsSync(marker)) return;
-  log("[pncsy] install deps (this package only)…");
-  const r = spawnSync("npm", ["install", "--omit=dev", "--no-fund", "--no-audit"], {
+  log("[pncsy] installing deps (this package only)…");
+  const hasNpm =
+    spawnSync("npm", ["--version"], { shell: process.platform === "win32", stdio: "ignore" })
+      .status === 0;
+  if (hasNpm) {
+    const r = spawnSync("npm", ["install", "--omit=dev", "--no-fund", "--no-audit"], {
+      cwd: ROOT,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    });
+    if (r.status === 0 && fs.existsSync(marker)) return;
+  }
+  const r2 = spawnSync(process.execPath, [path.join(__dirname, "fetch-deps.mjs")], {
     cwd: ROOT,
     stdio: "inherit",
-    shell: process.platform === "win32",
   });
-  if (r.status !== 0) {
-    log("[pncsy] npm install failed: " + ROOT);
+  if (r2.status !== 0 || !fs.existsSync(marker)) {
+    log(
+      "[pncsy] deps missing. Install: curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash"
+    );
     process.exit(1);
   }
 }
