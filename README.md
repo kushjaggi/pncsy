@@ -1,7 +1,7 @@
 # prompting-nahi-coding-sikho-yojna
 
-[![npm](https://img.shields.io/npm/v/pncsy?label=npm)](https://www.npmjs.com/package/pncsy)
-[![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-pncsy-24292f?logo=github)](https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna/packages)
+[![release](https://img.shields.io/github/v/release/kushjaggi/prompting-nahi-coding-sikho-yojna?label=release)](https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna/releases)
+[![install](https://img.shields.io/badge/install-curl%20%7C%20bash-0a7ea4)](https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna#quick-start)
 
 **Prompting nahi, coding sikho.**  
 Short command: **`pncsy`**
@@ -27,50 +27,45 @@ Turn messy agent Markdown and vague “teach me X” prompts into **structured l
 ## Quick start
 
 ```bash
-# lightweight — Node 18+ only, no npm
+# install — bash only, no Node, no npm
 curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
 
+# learning paths (works immediately)
 pncsy learn "LangGraph" --level advanced --depth deep
-# agent fills the .md using the .prompt.md
-pncsy langgraph-path.md --pack --open
+
+# PDF/HTML (opt-in Node stack)
+pncsy setup --node
+pncsy node langgraph-path.md --pack --open
 ```
 
-**Requirements:** Node 18+, Chrome/Chromium/Edge (for PDF). No npm, no clone.
+| What | Needs Node? |
+|------|-------------|
+| `pncsy learn` | No — pure bash |
+| `pncsy node file.md --pack` | Yes — PDF, HTML, Mermaid |
+| `pncsy node learn --init-config` | Yes — custom `pncsy.learn.json` |
 
 ### Install options
 
 ```bash
-# curl installer (recommended) — no npm
+# curl installer (recommended) — no Node, no npm
 curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
 
 # pin a version
-PNCSY_VERSION=1.0.0 curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
-
-# npm (if you already use it)
-npm install -g pncsy
-
-# GitHub Packages
-npm install -g @kushjaggi/pncsy --registry=https://npm.pkg.github.com
-
-# one-off, no install (needs npm/npx)
-npx pncsy learn "Kafka" --level intermediate
-npx pncsy README.md --pack
-
-# from source / contributors
-git clone https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna.git
-cd prompting-nahi-coding-sikho-yojna && npm install && npm link
+PNCSY_VERSION=1.0.2 curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
 ```
 
-Installs to `~/.local/share/pncsy` with `pncsy` on `~/.local/bin`. Override with `PNCSY_HOME` / `PNCSY_BIN`.
+Installs to `~/.local/share/pncsy`. Override with `PNCSY_HOME` / `PNCSY_BIN`.
 
-**GitHub Packages one-time setup** (for `@kushjaggi/pncsy`):
+<details>
+<summary>Optional: npm / GitHub Packages (only if you already use npm)</summary>
 
 ```bash
-# ~/.npmrc
-echo "@kushjaggi:registry=https://npm.pkg.github.com" >> ~/.npmrc
-echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc
-npm install -g @kushjaggi/pncsy
+npm install -g pncsy
+# or GitHub Packages:
+npm install -g @kushjaggi/pncsy --registry=https://npm.pkg.github.com
 ```
+
+</details>
 
 <p align="center">
   <img src="docs/screenshots/cli-demo.png" alt="Terminal showing pncsy learn and pncsy ship commands" width="640">
@@ -88,12 +83,12 @@ npm install -g @kushjaggi/pncsy
   - `<topic>-path.md` — scaffold with every section in the same order
   - `<topic>-path.prompt.md` — the prompt your agent uses to fill it (editable)
 - **No API keys** — your AI agent fills content; prompt bans invented citations (`(verify)` tag)
-- **Configurable structure** — `pncsy learn --init-config` → edit `pncsy.learn.json`
+- **Configurable structure** — `pncsy node learn --init-config` → edit `pncsy.learn.json`
 - **Safe re-runs** — existing path/prompt kept unless `--force`
 
 **Sections in every path:** Snapshot · Prerequisites (with self-checks) · Level ladder (goals, concepts, resources, hands-on task) · Videos & courses · Research papers (when depth/level warrants) · Common traps · Glossary · Next
 
-### Document shipping (`pncsy <file.md>`)
+### Document shipping (`pncsy node <file.md>`)
 
 - **Formats:** PDF (default) · HTML · `--pack` (both)
 - **AI-dump polish** — strips chatty openings (`--no-polish` to keep raw)
@@ -129,9 +124,9 @@ pncsy learn "Kafka" --level advanced --depth deep -o ./plans
 | `--level` | Target rung: `basic` \| `intermediate` \| `advanced` \| `expert` |
 | `--depth` | How much per level: `quick` \| `standard` \| `deep` |
 | `-o` | Output directory or file base |
-| `--init-config` | Write `pncsy.learn.json` to customize sections/levels |
+| `--init-config` | Write `pncsy.learn.json` (`pncsy node learn --init-config`) |
 | `--force` | Overwrite existing path/prompt files |
-| `--ship` / `--open` | Render PDF immediately after scaffold |
+| `--ship` / `--open` | Render PDF (`pncsy node learn … --ship`) |
 
 **Depth sizing:**
 
@@ -150,7 +145,7 @@ pncsy learn "Kafka" --level advanced --depth deep -o ./plans
 ### Step 3 — Ship
 
 ```bash
-pncsy plans/kafka-path.md --pack --open
+pncsy node plans/kafka-path.md --pack --open
 ```
 
 Gets styled **PDF + HTML** beside the source file.
@@ -159,25 +154,27 @@ Gets styled **PDF + HTML** beside the source file.
 
 ## How to: ship any Markdown
 
+Requires Node stack: `pncsy setup --node` once, then:
+
 ```bash
 # PDF only
-pncsy README.md
+pncsy node README.md
 
 # HTML only
-pncsy guide.md --html
+pncsy node guide.md --html
 
 # Both
-pncsy guide.md --pack
+pncsy node guide.md --pack
 
 # Custom cover
-pncsy guide.md \
+pncsy node guide.md \
   --subtitle "Team onboarding" \
   --chips "Setup,API,Deploy" \
   --kicker "Internal doc" \
   --open
 
 # Whole folder
-pncsy docs/
+pncsy node docs/
 
 # Frontmatter in the .md (CLI flags override)
 ```
@@ -205,7 +202,7 @@ format: pack
 ## Configure the learning path structure
 
 ```bash
-pncsy learn --init-config    # creates pncsy.learn.json
+pncsy node learn --init-config    # creates pncsy.learn.json
 ```
 
 Lookup order: `--config <file>` → `./pncsy.learn.json` → `~/.config/pncsy/learn.json` → built-in defaults.
@@ -237,23 +234,13 @@ Tokens: `{{topic}}`, `{{levelTitle}}`, `{{n}}`, `{{concepts}}`, `{{resources}}`,
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
-# or: npm install -g pncsy
 ```
 
-| Editor | Skill / rules location |
-|--------|------------------------|
-| **Cursor** | `~/.cursor/skills/pncsy` → symlink from install dir |
-| **Claude Code** | `~/.claude/skills/pncsy` |
-| **Windsurf** | `~/.codeium/windsurf/skills/pncsy` or Memories |
-| **Cline / Roo** | `.clinerules` / `.roorules` + `AGENTS.md` |
-| **Copilot** | `.github/copilot-instructions.md` |
-| **Any other** | Put `AGENTS.md` in project root |
-
-**Quick install (after curl or npm install):**
+**Wire skill into your editor:**
 
 ```bash
-ln -sfn ~/.local/share/pncsy/skill ~/.cursor/skills/pncsy   # curl install
-ln -sfn "$(npm root -g)/pncsy/skill" ~/.cursor/skills/pncsy # npm install
+ln -sfn ~/.local/share/pncsy/skill ~/.cursor/skills/pncsy   # Cursor
+ln -sfn ~/.local/share/pncsy/skill ~/.claude/skills/pncsy   # Claude Code
 ```
 
 Full per-editor steps: **[skill/INSTALL.md](skill/INSTALL.md)**
@@ -292,11 +279,11 @@ prompting-nahi-coding-sikho-yojna/
 ## Commands reference
 
 ```bash
-pncsy <file.md|dir> [options]          # ship docs
-pncsy learn "<topic>" [options]        # learning path
-pncsy learn --init-config              # write config template
-npm run check                          # run self-tests
-node scripts/capture-screenshots.mjs   # regenerate README images
+pncsy learn "<topic>" [options]        # learning path (no Node)
+pncsy node <file.md|dir> [options]     # ship PDF/HTML (Node)
+pncsy node learn --init-config         # custom config template
+pncsy setup                            # status
+pncsy setup --node                     # fetch Node deps once
 ```
 
 ---

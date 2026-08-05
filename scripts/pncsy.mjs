@@ -148,6 +148,11 @@ function ensureDeps() {
   const marker = path.join(ROOT, "node_modules", "marked", "package.json");
   if (fs.existsSync(marker)) return;
   log("[pncsy] installing deps (this package only)…");
+  const r2 = spawnSync(process.execPath, [path.join(__dirname, "fetch-deps.mjs")], {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
+  if (r2.status === 0 && fs.existsSync(marker)) return;
   const hasNpm =
     spawnSync("npm", ["--version"], { shell: process.platform === "win32", stdio: "ignore" })
       .status === 0;
@@ -159,14 +164,8 @@ function ensureDeps() {
     });
     if (r.status === 0 && fs.existsSync(marker)) return;
   }
-  const r2 = spawnSync(process.execPath, [path.join(__dirname, "fetch-deps.mjs")], {
-    cwd: ROOT,
-    stdio: "inherit",
-  });
   if (r2.status !== 0 || !fs.existsSync(marker)) {
-    log(
-      "[pncsy] deps missing. Install: curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash"
-    );
+    log("[pncsy] deps missing. Run: pncsy setup --node");
     process.exit(1);
   }
 }

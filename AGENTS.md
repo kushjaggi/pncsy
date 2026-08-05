@@ -8,7 +8,7 @@ Instructions for **any AI coding agent** (Cursor, Claude Code, Windsurf, Cline, 
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
-# or: npm install -g pncsy    # or: npx pncsy …
+# PDF/HTML (opt-in): pncsy setup --node && pncsy node file.md --pack
 ```
 
 ## When user asks
@@ -16,15 +16,15 @@ curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sik
 | Intent | Command |
 |--------|---------|
 | Learning path / roadmap / syllabus / "where do I start" | `pncsy learn "<topic>" --level intermediate --depth standard` |
-| Ship md as PDF | `pncsy "<file.md>"` |
-| PDF + HTML | `pncsy "<file.md>" --pack` |
-| Custom structure | `pncsy learn --init-config` → edit `pncsy.learn.json` |
+| Ship md as PDF | `pncsy node "<file.md>"` |
+| PDF + HTML | `pncsy node "<file.md>" --pack` |
+| Custom structure | `pncsy node learn --init-config` → edit `pncsy.learn.json` |
 
 ## Learning path workflow
 
 1. `pncsy learn "<topic>" …` → writes `<slug>-path.md` + `<slug>-path.prompt.md`
 2. Read `.prompt.md`, fill `.md` in place (keep every heading; `(verify)` on uncertain links)
-3. `pncsy "<slug>-path.md" --pack --open`
+3. `pncsy node "<slug>-path.md" --pack --open`
 
 Re-running `learn` keeps existing files. `--force` only when user wants reset.
 

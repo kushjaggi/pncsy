@@ -237,7 +237,7 @@ ${ruleList.join("\n")}
 ## Ship it
 
 \`\`\`bash
-pncsy "${slug(topic)}-path.md" --pack --open
+pncsy node "${slug(topic)}-path.md" --pack --open
 \`\`\`
 `;
 }
@@ -373,7 +373,7 @@ export async function runLearn(args) {
   if (pathState === "kept" || promptState === "kept") {
     console.error("Note   existing files left alone. --force to regenerate.");
   }
-  console.error("Next   fill path using prompt, then: pncsy \"" + pathFile + "\" --pack");
+  console.error("Next   fill path using prompt, then: pncsy node \"" + pathFile + "\" --pack");
 
   if (opts.ship) {
     const { shipFiles } = await import("./pncsy.mjs");

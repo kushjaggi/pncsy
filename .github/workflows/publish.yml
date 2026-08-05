@@ -74,7 +74,7 @@ jobs:
         run: |
           VER=$(node -p "require('./package.json').version")
           echo "version=$VER" >> "$GITHUB_OUTPUT"
-          tar czf "pncsy-${VER}.tar.gz" bin scripts skill AGENTS.md README.md LICENSE package.json node_modules
+          tar czf "pncsy-${VER}.tar.gz" bin scripts skill AGENTS.md README.md LICENSE package.json
           tar czf "pncsy-${VER}-deps.tar.gz" node_modules
 
       - name: Upload GitHub release

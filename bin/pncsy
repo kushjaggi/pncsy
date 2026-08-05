@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# prompting-nahi-coding-sikho-yojna (pncsy)
-# Structured learning paths + share-ready docs from Markdown.
+# pncsy — bash by default; Node only via explicit "pncsy node …"
 set -euo pipefail
 
 if [[ -n "${PNCSY_HOME:-}" ]]; then
@@ -15,23 +14,100 @@ else
   ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 fi
 
-SCRIPT="$ROOT/scripts/pncsy.mjs"
+die() { echo "pncsy: $*" >&2; exit 1; }
 
-if [[ ! -f "$SCRIPT" ]]; then
-  echo "pncsy: missing $SCRIPT" >&2
-  exit 1
-fi
+usage() {
+  cat >&2 <<'EOF'
+pncsy — learning paths + share-ready docs
 
-if [[ $# -lt 1 ]]; then
-  echo "Usage: pncsy <file.md|dir> [options]" >&2
-  echo "       pncsy learn \"<topic>\" [--level x] [--depth y]" >&2
-  echo "" >&2
-  echo "  pncsy learn \"LangGraph\" --level advanced --depth deep" >&2
-  echo "  pncsy notes.md" >&2
-  echo "  pncsy guide.md --pack --open" >&2
-  echo "  pncsy docs/ --pdf" >&2
-  echo "" >&2
-  exec node "$SCRIPT" --help
-fi
+No Node required:
+  pncsy learn "<topic>" [--level x] [--depth y]
+  pncsy setup              show install status
 
-exec node "$SCRIPT" "$@"
+Node required (PDF, HTML, Mermaid, custom config):
+  pncsy node <file.md> [--pack] [--open]
+  pncsy node learn "<topic>" [--ship] [--init-config]
+  pncsy setup --node       fetch Node deps (one-time)
+
+Examples:
+  pncsy learn "LangGraph" --level advanced --depth deep
+  pncsy node langgraph-path.md --pack --open
+EOF
+  exit "${1:-1}"
+}
+
+has_node() {
+  local bin="${PNCSY_NODE:-node}"
+  command -v "$bin" >/dev/null 2>&1 || [[ -x "$bin" ]]
+}
+
+node_major_ok() {
+  local bin="${PNCSY_NODE:-node}"
+  local major
+  major="$("$bin" -e 'process.stdout.write(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
+  [[ "${major:-0}" -ge "${PNCSY_NODE_MIN:-18}" ]]
+}
+
+run_node() {
+  local script="$ROOT/scripts/pncsy.mjs"
+  [[ -f "$script" ]] || die "missing $script"
+  has_node || die "Node ${PNCSY_NODE_MIN:-18}+ required for this command. Install Node, then: pncsy setup --node"
+  node_major_ok || die "Node ${PNCSY_NODE_MIN:-18}+ required (found: $(${PNCSY_NODE:-node} -v 2>/dev/null || echo none))"
+  local bin="${PNCSY_NODE:-node}"
+  exec "$bin" "$script" "$@"
+}
+
+cmd_setup() {
+  if [[ "${1:-}" == "--node" ]]; then
+    has_node || die "Node not found — install from https://nodejs.org first"
+    node_major_ok || die "Node ${PNCSY_NODE_MIN:-18}+ required"
+    if [[ -f "$ROOT/node_modules/marked/package.json" ]]; then
+      echo "✓ node deps already present in $ROOT"
+      exit 0
+    fi
+    echo "→ fetching node deps into $ROOT …"
+    local bin="${PNCSY_NODE:-node}"
+    if ! "$bin" "$ROOT/scripts/fetch-deps.mjs"; then
+      if command -v npm >/dev/null; then
+        (cd "$ROOT" && npm install --omit=dev --no-fund --no-audit)
+      else
+        die "could not fetch deps — run again or check network (curl + tar required)"
+      fi
+    fi
+    echo "✓ node stack ready — try: pncsy node file.md --pack"
+    exit 0
+  fi
+
+  echo "pncsy @ $ROOT"
+  echo "  learn (bash): ready"
+  if [[ -f "$ROOT/node_modules/marked/package.json" ]]; then
+    echo "  node stack:   ready"
+  elif has_node; then
+    echo "  node stack:   not installed — run: pncsy setup --node"
+  else
+    echo "  node stack:   needs Node — install Node, then: pncsy setup --node"
+  fi
+}
+
+[[ $# -lt 1 ]] && usage 0
+
+case "$1" in
+  -h|--help) usage 0 ;;
+  learn)
+    shift
+    exec "$ROOT/scripts/learn.sh" "$@"
+    ;;
+  node)
+    shift
+    [[ $# -lt 1 ]] && usage
+    run_node "$@"
+    ;;
+  setup)
+    shift
+    cmd_setup "${1:-}"
+    ;;
+  *)
+    die "PDF/HTML needs Node. Use: pncsy node $*
+Or learning paths (no Node): pncsy learn \"<topic>\""
+    ;;
+esac
