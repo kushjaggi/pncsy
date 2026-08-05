@@ -5,9 +5,11 @@
  */
 
 import assert from "assert";
+import { spawnSync } from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { fileURLToPath } from "url";
 import {
   buildPath,
   buildPrompt,
@@ -184,6 +186,41 @@ check("edited prompt survives a re-run unless forced", () => {
 
 check("slugify matches heading anchors", () => {
   assert.strictEqual(slugify("Level 1 — Basic!"), "level-1-basic");
+});
+
+// learn ships twice — bash for the no-Node install, Node for config/--ship.
+// Same flags must give byte-identical files or curl users get a different tool.
+check("bash and node learn agree byte for byte", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-parity-"));
+  const combos = [
+    ["basic", "quick"],
+    ["intermediate", "standard"],
+    ["advanced", "deep"],
+    ["expert", "standard"],
+  ];
+  try {
+    for (const [level, depth] of combos) {
+      const sh = path.join(dir, `sh-${level}-${depth}`);
+      const js = path.join(dir, `js-${level}-${depth}`);
+      const args = ["Kafka Streams", "--level", level, "--depth", depth, "-o"];
+
+      const a = spawnSync("bash", [path.join(scripts, "learn.sh"), ...args, sh]);
+      assert.strictEqual(a.status, 0, `learn.sh failed: ${a.stderr}`);
+      const b = spawnSync(process.execPath, [path.join(scripts, "pncsy.mjs"), "learn", ...args, js]);
+      assert.strictEqual(b.status, 0, `learn.mjs failed: ${b.stderr}`);
+
+      for (const name of ["kafka-streams-path.md", "kafka-streams-path.prompt.md"]) {
+        assert.strictEqual(
+          fs.readFileSync(path.join(sh, name), "utf8"),
+          fs.readFileSync(path.join(js, name), "utf8"),
+          `${name} drifted at ${level}/${depth}`
+        );
+      }
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 console.log(`\n${passed} checks passed`);

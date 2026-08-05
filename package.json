@@ -1,6 +1,6 @@
 {
   "name": "pncsy",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Prompting nahi, coding sikho — structured learning paths + share-ready PDF/HTML from Markdown. CLI: pncsy",
   "type": "module",
   "bin": {
@@ -51,14 +51,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna.git"
+    "url": "git+https://github.com/kushjaggi/pncsy.git"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
     "access": "public"
   },
   "bugs": {
-    "url": "https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna/issues"
+    "url": "https://github.com/kushjaggi/pncsy/issues"
   },
-  "homepage": "https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna#readme"
+  "homepage": "https://github.com/kushjaggi/pncsy#readme"
 }

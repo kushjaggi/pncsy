@@ -38,6 +38,13 @@ contains() {
   return 1
 }
 
+# "${arr[*]}" joins on IFS[0] only, so ", " needs building by hand
+join_comma() {
+  local out="" i
+  for i in "$@"; do out="${out:+$out, }$i"; done
+  echo "$out"
+}
+
 level_index() {
   local i=0
   for l in "${LEVELS[@]}"; do
@@ -56,9 +63,12 @@ depth_rules() {
   esac
 }
 
+# Mirrors sectionEnabled() in learn.mjs: quick vetoes, deep always wins,
+# otherwise the section needs advanced or above.
 wants_papers() {
   local level="$1" depth="$2"
-  [[ "$depth" == "deep" ]] || return 1
+  [[ "$depth" == "quick" ]] && return 1
+  [[ "$depth" == "deep" ]] && return 0
   local idx; idx="$(level_index "$level")"
   [[ "$idx" -ge 2 ]]
 }
@@ -158,7 +168,6 @@ _Snapshot paragraph._
 | Prerequisite | Self-check |
 |--------------|------------|
 | _skill_ | _question that proves it_ |
-
 EOF
     for n in "${!LADDER[@]}"; do
       lvl="${LADDER[n]}"
@@ -193,11 +202,11 @@ EOF
 - _one hands-on task that proves the goals_
 EOF
     done
-    cat <<'EOF'
+    cat <<EOF
 
 ## Videos and courses
 
-<!-- Say what to watch and what to skip. Mark unverified (verify). -->
+<!-- ${RESOURCES} entries. Say what to watch and what to skip. Mark unverified (verify). -->
 
 | Resource | Creator | Watch for | Skip |
 |----------|---------|-----------|------|
@@ -208,7 +217,7 @@ EOF
 
 ## Research papers
 
-<!-- Canonical papers only. Title (Authors, Year) — one-line takeaway. (verify) if unsure. -->
+<!-- Canonical papers only. Format: Title (Authors, Year) — one-line takeaway. Add (verify) if unsure. -->
 
 | Paper | Year | Read for |
 |-------|------|----------|
@@ -280,7 +289,7 @@ Fill \`${SLUG}-path.md\` in place. Keep every heading and its order. Replace ita
 | Topic | ${TOPIC} |
 | Target level | ${LEVEL} |
 | Depth | ${DEPTH} |
-| Levels to cover | $(IFS=', '; echo "${LADDER[*]}") |
+| Levels to cover | $(join_comma "${LADDER[@]}") |
 | Concepts per level | ${CONCEPTS} |
 | Resources per level | ${RESOURCES} |
 | Traps | ${TRAPS} |
@@ -293,7 +302,7 @@ ${SECTIONS}
 
 ## Rules
 
-1. Ladder runs $(IFS=', '; echo "${LADDER[*]}"). Each level must be usable on its own.
+1. Ladder runs $(join_comma "${LADDER[@]}"). Each level must be usable on its own.
 2. Every level goal is verifiable — the learner can prove it with a task, not a feeling.
 3. Resources: canonical and well known. Give author or channel, and say what to skip.
 4. Never invent a title, author, or URL. Unsure means append \`(verify)\` to that row.

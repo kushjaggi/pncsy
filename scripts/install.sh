@@ -2,7 +2,7 @@
 # pncsy installer — bash only. No Node, no npm.
 set -euo pipefail
 
-REPO="kushjaggi/prompting-nahi-coding-sikho-yojna"
+REPO="kushjaggi/pncsy"
 INSTALL_DIR="${PNCSY_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/pncsy}"
 BIN_DIR="${PNCSY_BIN:-$HOME/.local/bin}"
 
@@ -18,8 +18,10 @@ resolve_version() {
     echo "${PNCSY_VERSION#v}"
     return
   fi
+  # BSD sed has no \? so keep every substitution POSIX-plain
   curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-    | sed -n 's/.*"tag_name": *"v\?\([^"]*\)".*/\1/p' | head -1
+    | grep -m1 '"tag_name"' \
+    | sed -e 's/.*"tag_name"[: ]*"//' -e 's/".*//' -e 's/^v//'
 }
 
 install_release_bundle() {
@@ -34,8 +36,10 @@ install_source() {
   local tmp
   tmp="$(mktemp -d)"
   curl -fsSL "https://github.com/${REPO}/archive/refs/heads/main.tar.gz" | tar xz -C "$tmp"
-  local src="$tmp/prompting-nahi-coding-sikho-yojna-main"
-  [[ -d "$src" ]] || die "unexpected archive layout"
+  # GitHub names the folder after the repo, so a rename must not break this
+  local src
+  src="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
+  [[ -n "$src" && -d "$src/bin" ]] || die "unexpected archive layout"
   if command -v rsync >/dev/null; then
     rsync -a --delete "$src/" "$INSTALL_DIR/"
   else

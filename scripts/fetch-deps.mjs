@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const REPO = "kushjaggi/prompting-nahi-coding-sikho-yojna";
+const REPO = "kushjaggi/pncsy";
 const MARKER = path.join(ROOT, "node_modules", "marked", "package.json");
 
 if (fs.existsSync(MARKER)) process.exit(0);

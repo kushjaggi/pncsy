@@ -6,8 +6,7 @@ description: >-
   auto TOC and Mermaid. Works in any AI coding editor (Cursor, Claude Code,
   Windsurf, Cline, Copilot, etc.). Use when the user wants a learning path,
   roadmap, syllabus, study plan, or says pncsy, ship this md, export markdown
-  to PDF/HTML. Install via curl install.sh or npm install -g pncsy. Never add marked/puppeteer/mermaid
-  to the user's project.
+  to PDF/HTML. Never add marked/puppeteer/mermaid to the user's project.
 ---
 
 # pncsy
@@ -16,29 +15,33 @@ description: >-
 
 Editor-agnostic. Same workflow in Cursor, Claude Code, Windsurf, Cline, Copilot, or any agent with shell access.
 
-Install: `curl -fsSL …/scripts/install.sh | bash` or `npm install -g pncsy` · Editor setup: [INSTALL.md](INSTALL.md) · Repo rules: [AGENTS.md](../AGENTS.md)
+Install: `curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh | bash` · Editor setup: [INSTALL.md](INSTALL.md) · Repo rules: [AGENTS.md](../AGENTS.md)
+
+## Two tiers — pick the right one
+
+| Command | Needs Node |
+|---------|------------|
+| `pncsy learn "<topic>"` | No — pure bash, always works |
+| `pncsy node <file.md>` | Yes — PDF, HTML, Mermaid |
+| `pncsy node learn --init-config` | Yes — custom config |
+
+Plain `pncsy file.md` is **not** valid. Shipping always goes through `pncsy node`.
+
+If `pncsy node …` reports missing deps, run `pncsy setup --node` once, then retry.
 
 ## Run
 
 ```bash
-pncsy "/absolute/path/to/file.md"
-pncsy "/absolute/path/to/file.md" --pack --open
 pncsy learn "<topic>" --level advanced --depth deep
-```
-
-No global install? `npx pncsy …`
-
-Fallback (from npm global path):
-
-```bash
-node "$(npm root -g)/pncsy/scripts/pncsy.mjs" "/absolute/path/to/file.md"
+pncsy node "/absolute/path/to/file.md"
+pncsy node "/absolute/path/to/file.md" --pack --open
 ```
 
 ## Agent workflow
 
 1. Absolute path to `.md` (or dir).
 2. Pick format: PDF default; `--html` or `--pack` if asked.
-3. Run `pncsy …`. Deps ship with the package — **never** `npm install marked/puppeteer/mermaid` in the user's project.
+3. Run `pncsy node …`. Deps ship with the tool — **never** `npm install marked/puppeteer/mermaid` in the user's project.
 4. Report output path(s). Use `--json` when parsing needed.
 
 ## Formats
@@ -61,9 +64,9 @@ Writes `<slug>-path.md` (scaffold) + `<slug>-path.prompt.md` (fill prompt).
 
 1. Read `.prompt.md` — parameters and rules for this run.
 2. Fill `<slug>-path.md` in place. Keep every heading. `(verify)` on uncertain links.
-3. `pncsy "<slug>-path.md" --pack --open`.
+3. `pncsy node "<slug>-path.md" --pack --open`.
 
-Config: `pncsy learn --init-config` → `pncsy.learn.json` (or `~/.config/pncsy/learn.json`).
+Config: `pncsy node learn --init-config` → `pncsy.learn.json` (or `~/.config/pncsy/learn.json`).
 
 Edited prompt outranks defaults. Re-run `learn` keeps files; `--force` only on explicit reset.
 
@@ -72,7 +75,7 @@ Edited prompt outranks defaults. Re-run `learn` keeps files; `--force` only on e
 - Polish AI chat fluff (`--no-polish` to skip)
 - Cover from `#` title (`--no-cover` to skip)
 - Auto TOC when ≥3 `##` (`--no-toc` to skip)
-- Mermaid rendered; theme in package `scripts/theme.css`
+- Mermaid rendered; theme in `scripts/theme.css`
 
 ## Reply style (always on for this skill)
 
@@ -81,8 +84,8 @@ Terse replies about pncsy runs. Substance stay, fluff die. No tool narration. Er
 ## Examples
 
 User: ship this md as pdf  
-→ `pncsy "/abs/guide.md" --open`  
+→ `pncsy node "/abs/guide.md" --open`  
 → `PDF /abs/guide.pdf. Done.`
 
 User: teach me Kafka  
-→ `pncsy learn "Kafka" --level advanced --depth deep` → fill → `pncsy "/abs/kafka-path.md" --pack`
+→ `pncsy learn "Kafka" --level advanced --depth deep` → fill → `pncsy node "/abs/kafka-path.md" --pack`

@@ -1,7 +1,7 @@
 # prompting-nahi-coding-sikho-yojna
 
-[![release](https://img.shields.io/github/v/release/kushjaggi/prompting-nahi-coding-sikho-yojna?label=release)](https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna/releases)
-[![install](https://img.shields.io/badge/install-curl%20%7C%20bash-0a7ea4)](https://github.com/kushjaggi/prompting-nahi-coding-sikho-yojna#quick-start)
+[![release](https://img.shields.io/github/v/release/kushjaggi/pncsy?label=release)](https://github.com/kushjaggi/pncsy/releases)
+[![install](https://img.shields.io/badge/install-curl%20%7C%20bash-0a7ea4)](https://github.com/kushjaggi/pncsy#quick-start)
 
 **Prompting nahi, coding sikho.**  
 Short command: **`pncsy`**
@@ -28,7 +28,7 @@ Turn messy agent Markdown and vague “teach me X” prompts into **structured l
 
 ```bash
 # install — bash only, no Node, no npm
-curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh | bash
 
 # learning paths (works immediately)
 pncsy learn "LangGraph" --level advanced --depth deep
@@ -48,21 +48,23 @@ pncsy node langgraph-path.md --pack --open
 
 ```bash
 # curl installer (recommended) — no Node, no npm
-curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh | bash
 
 # pin a version
-PNCSY_VERSION=1.0.2 curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
+PNCSY_VERSION=1.0.4 curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh | bash
 ```
 
 Installs to `~/.local/share/pncsy`. Override with `PNCSY_HOME` / `PNCSY_BIN`.
 
 <details>
-<summary>Optional: npm / GitHub Packages (only if you already use npm)</summary>
+<summary>Optional: install from GitHub Packages instead</summary>
+
+Needs a GitHub token with `read:packages`:
 
 ```bash
-npm install -g pncsy
-# or GitHub Packages:
-npm install -g @kushjaggi/pncsy --registry=https://npm.pkg.github.com
+echo "@kushjaggi:registry=https://npm.pkg.github.com" >> ~/.npmrc
+echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc
+npm install -g @kushjaggi/pncsy
 ```
 
 </details>
@@ -233,7 +235,7 @@ Tokens: `{{topic}}`, `{{levelTitle}}`, `{{n}}`, `{{concepts}}`, `{{resources}}`,
 `pncsy` is **editor-agnostic**. Install once, wire into whatever agent you use:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh | bash
 ```
 
 **Wire skill into your editor:**
@@ -254,12 +256,12 @@ Compat aliases: `inkship`, `mdpdf` → both call `pncsy`.
 ## Project layout
 
 ```
-prompting-nahi-coding-sikho-yojna/
-├── bin/pncsy                 # CLI entry
+pncsy/
+├── bin/pncsy                 # CLI router (bash + optional node)
 ├── scripts/
-│   ├── pncsy.mjs             # Markdown → PDF/HTML renderer
-│   ├── learn.mjs             # Learning path generator
-│   ├── learn.default.mjs     # Default structure config
+│   ├── learn.sh              # Learning paths (bash, no Node)
+│   ├── pncsy.mjs             # Markdown → PDF/HTML (Node)
+│   ├── learn.mjs             # Full learn + config (Node)
 │   ├── capture-screenshots.mjs
 │   ├── check.mjs             # npm run check
 │   └── theme.css             # Print theme (teal cover, serif body)

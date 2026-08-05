@@ -7,7 +7,7 @@ Instructions for **any AI coding agent** (Cursor, Claude Code, Windsurf, Cline, 
 **`pncsy`** — structured learning paths + share-ready PDF/HTML from Markdown.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kushjaggi/prompting-nahi-coding-sikho-yojna/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh | bash
 # PDF/HTML (opt-in): pncsy setup --node && pncsy node file.md --pack
 ```
 
