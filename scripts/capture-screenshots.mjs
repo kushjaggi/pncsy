@@ -18,6 +18,52 @@ const CHROME =
   process.env.CHROME_PATH ||
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
+async function shotPage(browser, { name, html, selector, width, height, scrollTo }) {
+  if (!fs.existsSync(html)) {
+    console.warn("Skip", name, "- missing", html);
+    return;
+  }
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width, height, deviceScaleFactor: 2 });
+    await page.goto(pathToFileURL(html).href, { waitUntil: "networkidle0", timeout: 120000 });
+    await page
+      .waitForFunction(() => document.documentElement.getAttribute("data-mermaid-ready") === "true", {
+        timeout: 60000,
+      })
+      .catch(() => {});
+    await new Promise((r) => setTimeout(r, 500));
+
+    if (scrollTo) {
+      await page.evaluate((sel) => document.querySelector(sel)?.scrollIntoView({ block: "start" }), scrollTo);
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    const outPath = path.join(OUT, name + ".png");
+    const el = selector ? await page.$(selector) : null;
+    if (el) await el.screenshot({ path: outPath });
+    else await page.screenshot({ path: outPath });
+    console.log("Wrote", outPath);
+  } finally {
+    await page.close();
+  }
+}
+
+async function shotHtml(browser, name, html, { width = 720, height = 320 } = {}) {
+  const tmp = path.join(OUT, `_${name}.html`);
+  fs.writeFileSync(tmp, html);
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width, height, deviceScaleFactor: 2 });
+    await page.goto(pathToFileURL(tmp).href);
+    await page.screenshot({ path: path.join(OUT, name + ".png") });
+    console.log("Wrote", path.join(OUT, name + ".png"));
+  } finally {
+    await page.close();
+    fs.unlinkSync(tmp);
+  }
+}
+
 async function main() {
   if (!fs.existsSync(CHROME)) {
     console.error("Chrome required for screenshots:", CHROME);
@@ -26,145 +72,107 @@ async function main() {
 
   fs.mkdirSync(OUT, { recursive: true });
 
-  // 1. Generate demo learning path scaffold
   const demoDir = path.join(ROOT, "examples", "demo");
   fs.mkdirSync(demoDir, { recursive: true });
 
-  const learn = spawnSync(
-    "node",
-    [path.join(ROOT, "scripts", "pncsy.mjs"), "learn", "LangGraph", "--level", "intermediate", "--depth", "standard", "-o", demoDir, "--force"],
-    { cwd: ROOT, stdio: "inherit" }
-  );
+  const learn = spawnSync("bash", [path.join(ROOT, "scripts", "learn.sh"), "LangGraph", "--level", "intermediate", "--depth", "standard", "-o", demoDir, "--force"], {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
   if (learn.status !== 0) process.exit(learn.status || 1);
 
-  // 2. Fill demo path with realistic content (so screenshots look real)
   const pathFile = path.join(demoDir, "langgraph-path.md");
-  fs.writeFileSync(
-    pathFile,
-    DEMO_PATH,
-    "utf8"
-  );
+  fs.writeFileSync(pathFile, DEMO_PATH, "utf8");
 
-  // 3. Ship to HTML + PDF
-  const ship = spawnSync(
-    "node",
-    [path.join(ROOT, "scripts", "pncsy.mjs"), pathFile, "--pack"],
-    { cwd: ROOT, stdio: "inherit" }
-  );
-  if (ship.status !== 0) process.exit(ship.status || 1);
-
-  const sampleShip = spawnSync(
-    "node",
-    [path.join(ROOT, "scripts", "pncsy.mjs"), path.join(ROOT, "examples", "sample.md"), "--pack"],
-    { cwd: ROOT, stdio: "inherit" }
-  );
-  if (sampleShip.status !== 0) process.exit(sampleShip.status || 1);
+  for (const args of [[pathFile, "--pack"], [path.join(ROOT, "examples", "sample.md"), "--pack"]]) {
+    const ship = spawnSync("node", [path.join(ROOT, "scripts", "pncsy.mjs"), ...args], { cwd: ROOT, stdio: "inherit" });
+    if (ship.status !== 0) process.exit(ship.status || 1);
+  }
 
   const require = createRequire(path.join(ROOT, "package.json"));
   const puppeteer = require("puppeteer-core");
-
   const browser = await puppeteer.launch({
     executablePath: CHROME,
     headless: true,
     args: ["--no-sandbox", "--disable-gpu"],
   });
 
-  const shots = [
-    {
+  try {
+    await shotPage(browser, {
       name: "cover-page",
       html: path.join(demoDir, "langgraph-path.html"),
       selector: ".cover",
       width: 900,
       height: 700,
-    },
-    {
+    });
+    await shotPage(browser, {
       name: "content-page",
       html: path.join(demoDir, "langgraph-path.html"),
       selector: ".content",
       width: 900,
       height: 900,
-      clip: true,
-    },
-    {
+    });
+    await shotPage(browser, {
       name: "mermaid-diagram",
       html: path.join(ROOT, "examples", "sample.html"),
       selector: ".mermaid",
       width: 800,
       height: 400,
-    },
-    {
+    });
+    await shotPage(browser, {
       name: "toc-and-tables",
       html: path.join(demoDir, "langgraph-path.html"),
-      selector: ".toc-box, table",
+      selector: ".toc-box",
       width: 900,
       height: 600,
-      fullPage: false,
       scrollTo: ".toc-box",
-    },
-  ];
+    });
 
-  try {
-    const page = await browser.newPage();
-    for (const shot of shots) {
-      if (!fs.existsSync(shot.html)) {
-        console.warn("Skip", shot.name, "- missing", shot.html);
-        continue;
-      }
-      await page.setViewport({ width: shot.width, height: shot.height, deviceScaleFactor: 2 });
-      await page.goto(pathToFileURL(shot.html).href, {
-        waitUntil: "networkidle0",
-        timeout: 120000,
-      });
-      await page.waitForFunction(
-        () => document.documentElement.getAttribute("data-mermaid-ready") === "true",
-        { timeout: 60000 }
-      ).catch(() => {});
-      await new Promise((r) => setTimeout(r, 500));
+    await shotHtml(
+      browser,
+      "install-demo",
+      `<!DOCTYPE html><html><head><style>
+        body{margin:0;background:#0d1117;font-family:Menlo,Monaco,monospace;font-size:12.5px;padding:18px 20px;color:#e6edf3;line-height:1.55}
+        .g{color:#7ee787}.c{color:#79c0ff}.w{color:#ffa657}.p{color:#a5d6ff}.d{color:#8b949e}
+        .bar{height:28px;background:#161b22;border-radius:8px 8px 0 0;border:1px solid #30363d;border-bottom:none;display:flex;align-items:center;padding:0 12px;gap:6px}
+        .dot{width:10px;height:10px;border-radius:50%}.r{background:#ff5f57}.y{background:#febc2e}.g2{background:#28c840}
+        .term{border:1px solid #30363d;border-radius:0 0 8px 8px;padding:14px 16px}
+      </style></head><body>
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g2"></span></div>
+      <div class="term">
+<span class="g">$</span> <span class="w">curl -fsSL</span> <span class="p">https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh</span> <span class="c">| bash</span><br>
+<span class="d">→ downloading pncsy v1.0.4…</span><br>
+<span class="d">✓ pncsy installed → ~/.local/bin/pncsy  (no Node required)</span><br><br>
+<span class="g">$</span> <span class="w">pncsy learn</span> <span class="p">"LangGraph"</span> <span class="c">--level advanced --depth deep</span><br>
+<span class="d">Path   langgraph-path.md  [wrote]</span><br>
+<span class="d">Prompt langgraph-path.prompt.md  [wrote]</span>
+      </div></body></html>`,
+      { width: 760, height: 210 }
+    );
 
-      const outPath = path.join(OUT, shot.name + ".png");
-
-      if (shot.scrollTo) {
-        await page.evaluate((sel) => {
-          const el = document.querySelector(sel);
-          if (el) el.scrollIntoView({ block: "start" });
-        }, shot.scrollTo);
-        await new Promise((r) => setTimeout(r, 300));
-      }
-
-      const el = shot.selector ? await page.$(shot.selector) : null;
-      if (el) {
-        await el.screenshot({ path: outPath });
-      } else {
-        await page.screenshot({ path: outPath, fullPage: shot.fullPage ?? false });
-      }
-      console.log("Wrote", outPath);
-    }
+    await shotHtml(
+      browser,
+      "cli-demo",
+      `<!DOCTYPE html><html><head><style>
+        body{margin:0;background:#0d1117;font-family:Menlo,Monaco,monospace;font-size:12.5px;padding:18px 20px;color:#e6edf3;line-height:1.55}
+        .g{color:#7ee787}.c{color:#79c0ff}.w{color:#ffa657}.p{color:#a5d6ff}.d{color:#8b949e}
+        .bar{height:28px;background:#161b22;border-radius:8px 8px 0 0;border:1px solid #30363d;border-bottom:none;display:flex;align-items:center;padding:0 12px;gap:6px}
+        .dot{width:10px;height:10px;border-radius:50%}.r{background:#ff5f57}.y{background:#febc2e}.g2{background:#28c840}
+        .term{border:1px solid #30363d;border-radius:0 0 8px 8px;padding:14px 16px}
+      </style></head><body>
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g2"></span></div>
+      <div class="term">
+<span class="g">$</span> <span class="w">pncsy setup --node</span><br>
+<span class="d">✓ node stack ready — try: pncsy node file.md --pack</span><br><br>
+<span class="g">$</span> <span class="w">pncsy node</span> <span class="p">langgraph-path.md</span> <span class="c">--pack --open</span><br>
+<span class="d">HTML langgraph-path.html</span><br>
+<span class="d">PDF  langgraph-path.pdf</span>
+      </div></body></html>`,
+      { width: 760, height: 200 }
+    );
   } finally {
     await browser.close();
   }
-
-  // CLI terminal-style screenshot (text image via simple HTML)
-  const cliHtml = `<!DOCTYPE html><html><head><style>
-    body{margin:0;background:#1e1e1e;font-family:Menlo,Monaco,monospace;font-size:13px;padding:20px;color:#d4d4d4;line-height:1.5}
-    .g{color:#6a9955}.c{color:#9cdcfe}.w{color:#dcdcaa}.p{color:#ce9178}
-  </style></head><body>
-<span class="g">$</span> <span class="w">pncsy learn</span> <span class="p">"LangGraph"</span> <span class="c">--level advanced --depth deep</span><br>
-Path   langgraph-path.md  [wrote]<br>
-Prompt langgraph-path.prompt.md  [wrote]<br><br>
-<span class="g">$</span> <span class="w">pncsy</span> langgraph-path.md <span class="c">--pack --open</span><br>
-HTML langgraph-path.html<br>
-PDF  langgraph-path.pdf<br>
-Done langgraph-path.pdf
-</body></html>`;
-  const cliPath = path.join(OUT, "_cli.html");
-  fs.writeFileSync(cliPath, cliHtml);
-  const page = await puppeteer.launch({ executablePath: CHROME, headless: true }).then((b) => b.newPage());
-  await page.setViewport({ width: 720, height: 200, deviceScaleFactor: 2 });
-  await page.goto(pathToFileURL(cliPath).href);
-  await page.screenshot({ path: path.join(OUT, "cli-demo.png") });
-  await page.browser().close();
-  fs.unlinkSync(cliPath);
-  console.log("Wrote", path.join(OUT, "cli-demo.png"));
 }
 
 const DEMO_PATH = `---

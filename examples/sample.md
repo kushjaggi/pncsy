@@ -20,7 +20,7 @@ AI dumps long Markdown. Forward raw → looks bad. `pncsy` ships cover, TOC, dia
 
 ```mermaid
 flowchart LR
-  A[Messy .md] --> B[pncsy]
+  A[Messy .md] --> B[pncsy node]
   B --> C[PDF]
   B --> D[HTML]
 ```
@@ -29,8 +29,8 @@ flowchart LR
 
 | Step | Action |
 |------|--------|
-| 1 | `npm install && npm link` |
-| 2 | `pncsy file.md --open` |
+| 1 | `curl …/install.sh \| bash` |
+| 2 | `pncsy node file.md --open` |
 | 3 | Send the PDF |
 
 ## Code

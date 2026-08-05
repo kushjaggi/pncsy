@@ -45,5 +45,5 @@ Fill `langgraph-path.md` in place. Keep every heading and its order. Replace ita
 ## Ship it
 
 ```bash
-pncsy "langgraph-path.md" --pack --open
+pncsy node "langgraph-path.md" --pack --open
 ```
