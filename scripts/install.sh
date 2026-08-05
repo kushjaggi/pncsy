@@ -72,8 +72,6 @@ EOF
 }
 
 write_wrapper pncsy
-write_wrapper inkship
-write_wrapper mdpdf
 
 echo ""
 echo "✓ pncsy installed → $BIN_DIR/pncsy  (no Node required)"

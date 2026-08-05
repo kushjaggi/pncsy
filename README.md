@@ -98,7 +98,7 @@ pncsy node langgraph-path.md --pack --open
   <img src="docs/screenshots/toc-and-tables.png" alt="Auto-generated table of contents and styled tables" width="400">
 </p>
 
-See a filled example: **[examples/demo/langgraph-path.md](examples/demo/langgraph-path.md)** · [PDF](examples/demo/langgraph-path.pdf)
+See a filled example: **[examples/demo/langgraph-path.md](examples/demo/langgraph-path.md)**
 
 ---
 
@@ -231,8 +231,6 @@ pncsy setup                          # install status
 pncsy setup --node                   # fetch Node deps
 pncsy node learn --init-config       # custom config template
 ```
-
-Aliases: `inkship`, `mdpdf` → `pncsy`
 
 <details>
 <summary><strong>Project layout & maintainers</strong></summary>
