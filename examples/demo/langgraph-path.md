@@ -6,6 +6,8 @@ chips: [Prereqs, Basic, Intermediate, Traps]
 format: pdf
 ---
 
+<!-- pncsy:learn topic="LangGraph" level="intermediate" depth="standard" -->
+
 # LangGraph — Learning Path
 
 Build stateful agent workflows as graphs: nodes, edges, shared state, tool loops, memory, and human approval. This path takes you from first graph to production-shaped patterns.

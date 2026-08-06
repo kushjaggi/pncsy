@@ -223,4 +223,47 @@ check("bash and node learn agree byte for byte", () => {
   }
 });
 
+// The scaffold is only a contract if breaking it is detectable.
+check("check-path catches a broken contract", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const checker = path.join(scripts, "check-path.sh");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-check-path-"));
+  const run = (file, ...flags) => spawnSync("bash", [checker, path.join(dir, file), ...flags]);
+  try {
+    const built = spawnSync("bash", [
+      path.join(scripts, "learn.sh"), "Kafka Streams",
+      "--level", "advanced", "--depth", "standard", "-o", dir,
+    ]);
+    assert.strictEqual(built.status, 0, `learn.sh failed: ${built.stderr}`);
+
+    const scaffold = fs.readFileSync(path.join(dir, "kafka-streams-path.md"), "utf8");
+    assert.strictEqual(run("kafka-streams-path.md").status, 1, "unfilled scaffold passed");
+
+    const filled = scaffold.replace(/_[^_\n]+_/g, "filled").replace(/ \(verify\)/g, "");
+    fs.writeFileSync(path.join(dir, "ok.md"), filled, "utf8");
+    assert.strictEqual(run("ok.md").status, 0, "a correctly filled path was rejected");
+
+    const noHeading = filled.split("\n").filter((l) => l !== "## Glossary").join("\n");
+    fs.writeFileSync(path.join(dir, "no-heading.md"), noHeading, "utf8");
+    assert.strictEqual(run("no-heading.md").status, 1, "deleted heading went unnoticed");
+
+    // Dropping the marker is the failure mode the fill prompt used to cause.
+    const noMarker = filled.split("\n").filter((l) => !l.includes("pncsy:learn")).join("\n");
+    fs.writeFileSync(path.join(dir, "no-marker.md"), noMarker, "utf8");
+    assert.strictEqual(run("no-marker.md").status, 2, "missing marker should be uncheckable");
+
+    fs.writeFileSync(path.join(dir, "tagged.md"), filled.replace("## Next", "(verify)\n\n## Next"), "utf8");
+    assert.strictEqual(run("tagged.md").status, 0, "verify tags are a warning, not a failure");
+    assert.strictEqual(run("tagged.md", "--strict").status, 1, "--strict ignored the warning");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// The fill instructions must not tell the agent to delete what check-path reads.
+check("fill prompt protects the marker", () => {
+  const prompt = buildPrompt({ topic: "Kafka Streams", level: "advanced", depth: "standard" });
+  assert.match(prompt, /pncsy:learn/, "prompt never mentions keeping the marker");
+});
+
 console.log(`\n${passed} checks passed`);

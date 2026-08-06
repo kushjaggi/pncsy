@@ -58,7 +58,7 @@ else
   install_source
 fi
 
-chmod +x "$INSTALL_DIR/bin/pncsy" "$INSTALL_DIR/scripts/learn.sh" 2>/dev/null || true
+chmod +x "$INSTALL_DIR/bin/pncsy" "$INSTALL_DIR"/scripts/*.sh 2>/dev/null || true
 [[ -f "$INSTALL_DIR/bin/pncsy" ]] || die "install incomplete"
 
 write_wrapper() {

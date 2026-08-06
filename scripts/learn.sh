@@ -280,7 +280,7 @@ Edit this file to change the plan, then re-run the fill. Structure is fixed on p
 
 ## Task
 
-Fill \`${SLUG}-path.md\` in place. Keep every heading and its order. Replace italic placeholders and the example table rows. Delete the HTML comments as you go.
+Fill \`${SLUG}-path.md\` in place. Keep every heading and its order. Replace italic placeholders and the example table rows. Delete the guidance comments as you go, but keep the \`pncsy:learn\` line — \`pncsy check\` needs it to verify the result.
 
 ## Parameters
 

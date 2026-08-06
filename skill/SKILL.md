@@ -22,6 +22,7 @@ Install: `curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scri
 | Command | Needs Node |
 |---------|------------|
 | `pncsy learn "<topic>"` | No — pure bash, always works |
+| `pncsy check <path.md>` | No — verifies a filled path |
 | `pncsy node <file.md>` | Yes — PDF, HTML, Mermaid |
 | `pncsy node learn --init-config` | Yes — custom config |
 
@@ -63,8 +64,9 @@ pncsy learn "<topic>" --level basic|intermediate|advanced|expert --depth quick|s
 Writes `<slug>-path.md` (scaffold) + `<slug>-path.prompt.md` (fill prompt).
 
 1. Read `.prompt.md` — parameters and rules for this run.
-2. Fill `<slug>-path.md` in place. Keep every heading. `(verify)` on uncertain links.
-3. `pncsy node "<slug>-path.md" --pack --open`.
+2. Fill `<slug>-path.md` in place. Keep every heading and the `<!-- pncsy:learn … -->` line. `(verify)` on uncertain links.
+3. `pncsy check "<slug>-path.md"` — fix what it reports, re-run until clean. Exit 0 clean, 1 broken, 2 uncheckable.
+4. `pncsy node "<slug>-path.md" --pack --open`.
 
 Config: `pncsy node learn --init-config` → `pncsy.learn.json` (or `~/.config/pncsy/learn.json`).
 

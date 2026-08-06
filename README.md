@@ -39,16 +39,17 @@ A CLI that turns “teach me X” and messy agent Markdown into **structured lea
 flowchart LR
   A["pncsy learn \"Topic\""] --> B["topic-path.md\n+ topic-path.prompt.md"]
   B --> C["Your AI agent\nfills the scaffold"]
-  C --> D["pncsy node topic-path.md --pack"]
-  D --> E["PDF + HTML"]
+  C --> D["pncsy check topic-path.md"]
+  D --> E["pncsy node topic-path.md --pack"]
+  E --> F["PDF + HTML"]
 ```
 
-**Two commands. Two tiers.**
+**Two tiers.**
 
-| | `pncsy learn` | `pncsy node` |
+| | `pncsy learn` · `pncsy check` | `pncsy node` |
 |---|---|---|
 | **Runtime** | bash only | Node 18+ (opt-in) |
-| **You get** | Scaffold + agent prompt | PDF, HTML, rendered Mermaid |
+| **You get** | Scaffold, agent prompt, contract check | PDF, HTML, rendered Mermaid |
 | **Use when** | Roadmap, syllabus, “where do I start?” | Sharing docs that should look finished |
 
 ---
@@ -130,9 +131,27 @@ pncsy learn "Kafka" --level advanced --depth deep -o ./plans
 
 1. Run `pncsy learn "topic" …`
 2. Open `.prompt.md` — tell your agent: *fill `.md` in place; keep every heading; tag uncertain links `(verify)`*
-3. Ship: `pncsy node "<slug>-path.md" --pack --open`
+3. Verify: `pncsy check "<slug>-path.md"`
+4. Ship: `pncsy node "<slug>-path.md" --pack --open`
 
 Re-running `learn` keeps your edits. Use `--force` only when you want a clean slate.
+
+### Did the agent actually follow the scaffold?
+
+Agents drift — they drop a heading, leave `_placeholder_` text, or forget to resolve a `(verify)` tag. `pncsy check` rebuilds the scaffold from the `pncsy:learn` marker in your file and diffs against it:
+
+```bash
+$ pncsy check langgraph-path.md
+langgraph-path.md  (LangGraph · intermediate · standard)
+
+  ✗ missing heading   ## Glossary
+  ✗ placeholder left  _why it matters_ (line 61)
+  ! unresolved        (verify) × 3
+
+FAIL  2 problem(s), 1 warning(s)
+```
+
+Exit `0` clean, `1` contract broken, `2` uncheckable — so it drops straight into CI or a pre-commit hook. `--strict` fails on warnings too.
 
 <details>
 <summary><strong>Custom structure</strong> (needs Node)</summary>
@@ -226,6 +245,7 @@ Per-editor setup: **[skill/INSTALL.md](skill/INSTALL.md)**
 
 ```bash
 pncsy learn "<topic>" [options]      # scaffold — no Node
+pncsy check <path.md> [--strict]     # verify a filled path — no Node
 pncsy node <file.md|dir> [options]   # ship PDF/HTML — needs Node
 pncsy setup                          # install status
 pncsy setup --node                   # fetch Node deps

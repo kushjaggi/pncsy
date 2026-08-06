@@ -22,6 +22,7 @@ pncsy — learning paths + share-ready docs
 
 No Node required:
   pncsy learn "<topic>" [--level x] [--depth y]
+  pncsy check <path.md>    verify a filled path kept its shape
   pncsy setup              show install status
 
 Node required (PDF, HTML, Mermaid, custom config):
@@ -96,6 +97,10 @@ case "$1" in
   learn)
     shift
     exec "$ROOT/scripts/learn.sh" "$@"
+    ;;
+  check)
+    shift
+    exec "$ROOT/scripts/check-path.sh" "$@"
     ;;
   node)
     shift
