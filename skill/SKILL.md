@@ -1,12 +1,12 @@
 ---
 name: pncsy
 description: >-
-  Generate structured learning paths (fixed levels, prerequisites, videos,
-  papers, traps, glossary) and ship Markdown as share-ready PDF/HTML with cover,
-  auto TOC and Mermaid. Works in any AI coding editor (Cursor, Claude Code,
-  Windsurf, Cline, Copilot, etc.). Use when the user wants a learning path,
-  roadmap, syllabus, study plan, or says pncsy, ship this md, export markdown
-  to PDF/HTML. Never add marked/puppeteer/mermaid to the user's project.
+  Create and verify structured learning paths and durable project records
+  (ADR, architecture, flow, constraints, bug, handover), then ship Markdown as
+  share-ready PDF/HTML with cover, auto TOC and diagrams. Works in any AI
+  coding editor. Use for roadmaps, engineering decisions, system maps, code
+  traces, guardrails, bug investigations, session handoffs, pncsy check, or
+  Markdown export. Never add marked/puppeteer/mermaid to the user's project.
 ---
 
 # pncsy
@@ -39,7 +39,7 @@ pncsy node "/absolute/path/to/file.md"
 pncsy node "/absolute/path/to/file.md" --pack --open
 ```
 
-## Agent workflow
+## Shipping workflow
 
 1. Absolute path to `.md` (or dir).
 2. Pick format: PDF default; `--html` or `--pack` if asked.

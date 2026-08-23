@@ -27,8 +27,32 @@ resolve_version() {
 install_release_bundle() {
   local ver="$1"
   local url="https://github.com/${REPO}/releases/download/v${ver}/pncsy-${ver}.tar.gz"
+  local tmp
+  tmp="$(mktemp -d)"
   echo "→ downloading pncsy v${ver}…"
-  curl -fsSL "$url" | tar xz -C "$INSTALL_DIR"
+  if ! curl -fsSL "$url" | tar xz -C "$tmp"; then
+    rm -rf "$tmp"
+    return 1
+  fi
+  install_tree "$tmp"
+  rm -rf "$tmp"
+}
+
+install_tree() {
+  local src="$1"
+  [[ -f "$src/bin/pncsy" && -d "$src/scripts" ]] || die "unexpected archive layout"
+  if command -v rsync >/dev/null; then
+    # Node deps are a separate release artifact and survive core upgrades.
+    rsync -a --delete --exclude node_modules "$src/" "$INSTALL_DIR/"
+  else
+    # These are the only roots pncsy owns. Removing them first clears files
+    # deleted by a newer release without touching separately fetched deps.
+    local item
+    for item in bin scripts skill AGENTS.md README.md LICENSE package.json package-lock.json SKILL.md; do
+      rm -rf "$INSTALL_DIR/$item"
+    done
+    cp -R "$src/." "$INSTALL_DIR/"
+  fi
 }
 
 install_source() {
@@ -39,21 +63,16 @@ install_source() {
   # GitHub names the folder after the repo, so a rename must not break this
   local src
   src="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
-  [[ -n "$src" && -d "$src/bin" ]] || die "unexpected archive layout"
-  if command -v rsync >/dev/null; then
-    rsync -a --delete "$src/" "$INSTALL_DIR/"
-  else
-    find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-    cp -R "$src/." "$INSTALL_DIR/"
-  fi
+  install_tree "$src"
   rm -rf "$tmp"
 }
 
-VER="$(resolve_version)"
-if [[ -n "$VER" ]] && install_release_bundle "$VER" 2>/dev/null; then
-  :
-elif [[ -n "${PNCSY_VERSION:-}" ]]; then
-  install_release_bundle "${PNCSY_VERSION#v}" || die "release v${PNCSY_VERSION} not found"
+VER="$(resolve_version || true)"
+if [[ -n "$VER" ]]; then
+  if ! install_release_bundle "$VER"; then
+    [[ -z "${PNCSY_VERSION:-}" ]] || die "release v${PNCSY_VERSION#v} not found"
+    install_source
+  fi
 else
   install_source
 fi

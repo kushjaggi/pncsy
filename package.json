@@ -1,7 +1,7 @@
 {
   "name": "pncsy",
-  "version": "1.0.4",
-  "description": "Prompting nahi, coding sikho — structured learning paths + share-ready PDF/HTML from Markdown. CLI: pncsy",
+  "version": "1.1.0",
+  "description": "Scaffold, verify, and ship learning paths, engineering records, and Markdown as PDF/HTML.",
   "type": "module",
   "bin": {
     "pncsy": "bin/pncsy"
@@ -11,6 +11,9 @@
     "scripts",
     "!scripts/capture-screenshots.mjs",
     "skill",
+    "examples",
+    "!examples/**/*.html",
+    "!examples/**/*.pdf",
     "AGENTS.md",
     "README.md",
     "LICENSE"
@@ -19,7 +22,7 @@
     "pncsy": "node ./scripts/pncsy.mjs",
     "check": "node ./scripts/check.mjs",
     "prepublishOnly": "npm run check",
-    "postinstall": "node -e \"console.error('\\npncsy installed. Try: pncsy learn \\\"Kafka\\\" --level advanced\\n')\""
+    "postinstall": "node -e \"console.error('\\npncsy installed. Run: pncsy --help\\n')\""
   },
   "keywords": [
     "pncsy",
@@ -27,6 +30,9 @@
     "roadmap",
     "syllabus",
     "study-plan",
+    "adr",
+    "architecture",
+    "handover",
     "markdown",
     "pdf",
     "html",
@@ -54,10 +60,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kushjaggi/pncsy.git"
-  },
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org",
-    "access": "public"
   },
   "bugs": {
     "url": "https://github.com/kushjaggi/pncsy/issues"

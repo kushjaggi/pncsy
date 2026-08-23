@@ -18,7 +18,7 @@ die() { echo "pncsy: $*" >&2; exit 1; }
 
 usage() {
   cat >&2 <<'EOF'
-pncsy — learning paths + share-ready docs
+pncsy — scaffold, check, and ship durable docs
 
 No Node required:
   pncsy learn "<topic>" [--level x] [--depth y]
@@ -35,12 +35,14 @@ Project docs (scaffold + fill prompt, same check contract):
 
 Node required (PDF, HTML, Mermaid, custom config):
   pncsy node <file.md> [--pack] [--open]
-  pncsy node learn "<topic>" [--ship] [--init-config]
+  pncsy node learn "<topic>" [--config file] [--init-config]
   pncsy setup --node       fetch Node deps (one-time)
 
 Examples:
-  pncsy learn "LangGraph" --level advanced --depth deep
-  pncsy node langgraph-path.md --pack --open
+  pncsy learn "OmniVoice fine-tuning" --level advanced --depth deep
+  pncsy adr "Use Postgres over DynamoDB"
+  pncsy check omnivoice-fine-tuning-path.md --strict
+  pncsy node omnivoice-fine-tuning-path.md --pack --open
 EOF
   exit "${1:-1}"
 }
@@ -57,6 +59,13 @@ node_major_ok() {
   [[ "${major:-0}" -ge "${PNCSY_NODE_MIN:-18}" ]]
 }
 
+node_deps_ready() {
+  [[ -f "$ROOT/node_modules/marked/package.json" ]] &&
+    [[ -f "$ROOT/node_modules/mermaid/package.json" ]] &&
+    [[ -f "$ROOT/node_modules/puppeteer-core/package.json" ]] &&
+    [[ -f "$ROOT/node_modules/@viz-js/viz/package.json" ]]
+}
+
 run_node() {
   local script="$ROOT/scripts/pncsy.mjs"
   [[ -f "$script" ]] || die "missing $script"
@@ -67,10 +76,11 @@ run_node() {
 }
 
 cmd_setup() {
+  [[ $# -le 1 ]] || die "setup accepts only --node"
   if [[ "${1:-}" == "--node" ]]; then
     has_node || die "Node not found — install from https://nodejs.org first"
     node_major_ok || die "Node ${PNCSY_NODE_MIN:-18}+ required"
-    if [[ -f "$ROOT/node_modules/marked/package.json" ]]; then
+    if node_deps_ready; then
       echo "✓ node deps already present in $ROOT"
       exit 0
     fi
@@ -86,10 +96,11 @@ cmd_setup() {
     echo "✓ node stack ready — try: pncsy node file.md --pack"
     exit 0
   fi
+  [[ $# -eq 0 ]] || die "unknown setup option: $1 (use: pncsy setup --node)"
 
   echo "pncsy @ $ROOT"
   echo "  learn (bash): ready"
-  if [[ -f "$ROOT/node_modules/marked/package.json" ]]; then
+  if node_deps_ready; then
     echo "  node stack:   ready"
   elif has_node; then
     echo "  node stack:   not installed — run: pncsy setup --node"
@@ -120,10 +131,10 @@ case "$1" in
     ;;
   setup)
     shift
-    cmd_setup "${1:-}"
+    cmd_setup "$@"
     ;;
   *)
-    die "PDF/HTML needs Node. Use: pncsy node $*
-Or learning paths (no Node): pncsy learn \"<topic>\""
+    die "unknown command: $1
+Use pncsy --help for learning paths, project records, checks, and PDF/HTML shipping"
     ;;
 esac

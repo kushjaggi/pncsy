@@ -2,39 +2,39 @@
 /** npm-free deps fetch — pulls bundled node_modules from GitHub releases. */
 import { spawnSync } from "child_process";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const REPO = "kushjaggi/pncsy";
-const MARKER = path.join(ROOT, "node_modules", "marked", "package.json");
+const REQUIRED = ["marked", "mermaid", "puppeteer-core", "@viz-js/viz"];
+const ready = () =>
+  REQUIRED.every((name) => fs.existsSync(path.join(ROOT, "node_modules", name, "package.json")));
 
-if (fs.existsSync(MARKER)) process.exit(0);
+if (ready()) process.exit(0);
 
-async function releaseVersion() {
-  const local = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
+function extract(url) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-deps-"));
+  const archive = path.join(dir, "deps.tar.gz");
   try {
-    const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
-    if (!r.ok) return local;
-    const j = await r.json();
-    return j.tag_name?.replace(/^v/, "") || local;
-  } catch {
-    return local;
+    if (spawnSync("curl", ["-fsSL", url, "-o", archive], { stdio: "inherit" }).status !== 0) {
+      return false;
+    }
+    return spawnSync("tar", ["xzf", archive, "-C", ROOT], { stdio: "inherit" }).status === 0;
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 }
 
-function extract(url) {
-  const cmd = `curl -fsSL "${url}" | tar xz -C "${ROOT}"`;
-  return spawnSync("bash", ["-c", cmd], { stdio: "inherit" }).status === 0;
-}
-
-const ver = process.argv[2] || (await releaseVersion());
+// A pinned pncsy install must use dependencies from the same release. Pulling
+// "latest" here can silently pair old code with a newer, incompatible stack.
+const local = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
+const ver = process.argv[2] || local;
 const depsUrl = `https://github.com/${REPO}/releases/download/v${ver}/pncsy-${ver}-deps.tar.gz`;
-const fullUrl = `https://github.com/${REPO}/releases/download/v${ver}/pncsy-${ver}.tar.gz`;
 
-if (extract(depsUrl) && fs.existsSync(MARKER)) process.exit(0);
-if (extract(fullUrl) && fs.existsSync(MARKER)) process.exit(0);
+if (extract(depsUrl) && ready()) process.exit(0);
 
 console.error(
   `pncsy: could not fetch deps. Run:\n  curl -fsSL https://raw.githubusercontent.com/${REPO}/main/scripts/install.sh | bash`

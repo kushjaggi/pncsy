@@ -34,6 +34,21 @@ slug() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-|-$//g' | cut -c1-60
 }
 
+path_slug() {
+  local out
+  out="$(slug "$1")"
+  [[ -n "$out" ]] || out="u-$(printf '%s' "$1" | od -An -tx1 | tr -d ' \n' | cut -c1-12)"
+  printf '%s\n' "$out"
+}
+
+marker_escape() {
+  printf '%s' "$1" | sed -e 's/%/%25/g' -e 's/"/%22/g' -e 's/</%3C/g' -e 's/>/%3E/g'
+}
+
+need_value() {
+  [[ $# -ge 2 && -n "$2" ]] || die "$1 needs a value"
+}
+
 contains() {
   local x="$1"; shift
   for i; do [[ "$i" == "$x" ]] && return 0; done
@@ -60,18 +75,27 @@ SUBJECT="" OUT="" FORCE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help) usage 0 ;;
-    -o|--output) OUT="$2"; shift 2 ;;
+    -o|--output) need_value "$@"; OUT="$2"; shift 2 ;;
     --force) FORCE=1; shift ;;
     -*) die "unknown option: $1" ;;
     *) SUBJECT="${SUBJECT:+$SUBJECT }$1"; shift ;;
   esac
 done
 
+case "$SUBJECT" in *$'\n'*|*$'\r'*) die "subject must be one line" ;; esac
+
 DIR="${OUT:-.}"
 mkdir -p "$DIR"
 
+TODAY="$(date +%Y-%m-%d)"
+STAMP="$(date +%Y-%m-%d-%H%M%S)-$$"
 if [[ -n "$SUBJECT" ]]; then
-  BASE="$(slug "$SUBJECT")-$KIND"
+  SLUG="$(path_slug "$SUBJECT")"
+  BASE="$SLUG-$KIND"
+elif [[ "$KIND" == "handover" ]]; then
+  # A handover is a point-in-time record. Reusing handover.md silently keeps
+  # the first session forever, which is the opposite of a useful handoff.
+  BASE="handover-$STAMP"
 else
   BASE="$KIND"
 fi
@@ -81,7 +105,6 @@ PROMPT_FILE="$DIR/${BASE}.prompt.md"
 # Read HEAD where the doc will live, not where the command was typed — check
 # resolves it the same way, and the two must agree.
 COMMIT="$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-TODAY="$(date +%Y-%m-%d)"
 
 case "$KIND" in
   adr)         LABEL="ADR";          KICKER="Decision Record" ;;
@@ -416,7 +439,7 @@ kicker: ${KICKER}
 format: pdf
 ---
 
-<!-- pncsy:${KIND} subject="${SUBJECT}" commit="${COMMIT}" -->
+<!-- pncsy:${KIND} subject="$(marker_escape "$SUBJECT")" commit="${COMMIT}" encoding="percent" -->
 <!-- Fill with the sibling .prompt.md file. Keep every heading and its order. -->
 
 # ${HEADING}

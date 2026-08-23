@@ -17,14 +17,28 @@ pncsy learn "<topic>" [options]
   --force         Overwrite existing files
   -h, --help
 
-PDF/HTML needs Node:  pncsy node learn "<topic>" --ship
-Custom config:       pncsy node learn --init-config
+Custom config:  pncsy node learn --init-config
 EOF
   exit "${1:-1}"
 }
 
 slug() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-|-$//g' | cut -c1-60
+}
+
+path_slug() {
+  local out
+  out="$(slug "$1")"
+  [[ -n "$out" ]] || out="u-$(printf '%s' "$1" | od -An -tx1 | tr -d ' \n' | cut -c1-12)"
+  printf '%s\n' "$out"
+}
+
+marker_escape() {
+  printf '%s' "$1" | sed -e 's/%/%25/g' -e 's/"/%22/g' -e 's/</%3C/g' -e 's/>/%3E/g'
+}
+
+need_value() {
+  [[ $# -ge 2 && -n "$2" ]] || die "$1 needs a value"
 }
 
 title_case() {
@@ -78,9 +92,9 @@ TOPIC="" LEVEL="intermediate" DEPTH="standard" OUT="" FORCE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help) usage 0 ;;
-    --level) LEVEL="$(echo "$2" | tr '[:upper:]' '[:lower:]')"; shift 2 ;;
-    --depth) DEPTH="$(echo "$2" | tr '[:upper:]' '[:lower:]')"; shift 2 ;;
-    -o|--output) OUT="$2"; shift 2 ;;
+    --level) need_value "$@"; LEVEL="$(echo "$2" | tr '[:upper:]' '[:lower:]')"; shift 2 ;;
+    --depth) need_value "$@"; DEPTH="$(echo "$2" | tr '[:upper:]' '[:lower:]')"; shift 2 ;;
+    -o|--output) need_value "$@"; OUT="$2"; shift 2 ;;
     --force) FORCE=1; shift ;;
     --*) die "unknown option: $1 (custom config needs: pncsy node learn …)" ;;
     *)
@@ -91,6 +105,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$TOPIC" ]] || usage
+case "$TOPIC" in *$'\n'*|*$'\r'*) die "topic must be one line" ;; esac
 
 contains "$LEVEL" "${LEVELS[@]}" || die "bad level. Use: ${LEVELS[*]}"
 contains "$DEPTH" "${DEPTHS[@]}" || die "bad depth. Use: ${DEPTHS[*]}"
@@ -105,7 +120,7 @@ CHIPS="Prereqs"
 for l in "${LADDER[@]}"; do CHIPS+=", $(title_case "$l")"; done
 CHIPS+=", Traps"
 
-SLUG="$(slug "$TOPIC")"
+SLUG="$(path_slug "$TOPIC")"
 DIR="${OUT:-.}"
 mkdir -p "$DIR"
 PATH_FILE="$DIR/${SLUG}-path.md"
@@ -132,7 +147,7 @@ chips: [${CHIPS}]
 format: pdf
 ---
 
-<!-- pncsy:learn topic="${TOPIC}" level="${LEVEL}" depth="${DEPTH}" -->
+<!-- pncsy:learn topic="$(marker_escape "$TOPIC")" level="${LEVEL}" depth="${DEPTH}" config="" encoding="percent" -->
 <!-- Fill with the sibling .prompt.md file. Keep every heading and its order. -->
 
 # ${TOPIC} — Learning Path

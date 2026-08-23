@@ -4,21 +4,22 @@
 [![install](https://img.shields.io/badge/install-curl%20%7C%20bash-0a7ea4)](https://github.com/kushjaggi/pncsy#install)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**Prompting nahi, coding sikho.**
+**Scaffold it. Check it. Ship it.**
 
-A CLI that turns “teach me X” and messy agent Markdown into **structured learning paths** and **share-ready PDF/HTML** — same shape every time, nothing installed in your project.
+`pncsy` turns agent work into durable artifacts: **learning paths, ADRs, architecture maps, execution flows, constraints, bug records, and handovers** with a checkable contract, plus share-ready PDF/HTML from Markdown.
 
 <p align="center">
-  <img src="docs/screenshots/cover-page.png" alt="PDF cover — LangGraph learning path with teal theme, title, subtitle, and topic chips" width="720">
+  <img src="https://raw.githubusercontent.com/kushjaggi/pncsy/main/docs/screenshots/cover-page.png" alt="PDF cover — OmniVoice fine-tuning for Hindi, Hinglish, Indian English, and non-verbal tags" width="720">
 </p>
 
 <p align="center">
   <a href="#install">Install</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#learning-paths">Learning paths</a> ·
+  <a href="#project-docs">Project docs</a> ·
   <a href="#ship-docs">Ship docs</a> ·
   <a href="#ai-editors">AI editors</a> ·
-  <a href="examples/demo/langgraph-path.md">Live example</a>
+  <a href="examples/demo/omnivoice-indian-speech-finetuning-path.md">Live example</a>
 </p>
 
 ---
@@ -27,7 +28,8 @@ A CLI that turns “teach me X” and messy agent Markdown into **structured lea
 
 | Today | With `pncsy` |
 |-------|--------------|
-| “Make me a Kafka roadmap” → different shape every time | Fixed ladder + sections + fill prompt — same structure, any model |
+| “Make me a roadmap” → different shape every time | Fixed ladder + sections + fill prompt — same structure, any model |
+| An agent made a decision, traced a flow, or fixed a bug → the reasoning disappears next session | ADR, architecture, flow, constraints, bug, and handover records with a checkable shape |
 | Agent dumps 40 pages of `.md` → you forward it raw | Polish → cover → auto TOC → Mermaid → PDF/HTML |
 | Doc tools want `npm install` in *your* repo | One curl install; deps live in `~/.local/share/pncsy` only |
 
@@ -37,8 +39,8 @@ A CLI that turns “teach me X” and messy agent Markdown into **structured lea
 
 ```mermaid
 flowchart LR
-  A["pncsy learn \"Topic\""] --> B["topic-path.md\n+ topic-path.prompt.md"]
-  B --> C["Your AI agent\nfills the scaffold"]
+  A["pncsy learn / adr / arch /\nflow / constraints / bug / handover"] --> B["artifact.md\n+ artifact.prompt.md"]
+  B --> C["Your agent\nfills the scaffold"]
   C --> D["pncsy check topic-path.md"]
   D --> E["pncsy node topic-path.md --pack"]
   E --> F["PDF + HTML"]
@@ -46,11 +48,11 @@ flowchart LR
 
 **Two tiers.**
 
-| | `pncsy learn` · `pncsy check` | `pncsy node` |
+| | `pncsy learn` · project docs · `pncsy check` | `pncsy node` |
 |---|---|---|
 | **Runtime** | bash only | Node 18+ (opt-in) |
-| **You get** | Scaffold, agent prompt, contract check | PDF, HTML, rendered Mermaid |
-| **Use when** | Roadmap, syllabus, “where do I start?” | Sharing docs that should look finished |
+| **You get** | Scaffold, agent prompt, contract check | PDF, HTML, rendered Mermaid / Graphviz |
+| **Use when** | Learning plans and durable engineering context | Sharing docs that should look finished |
 
 ---
 
@@ -63,43 +65,40 @@ curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/instal
 No Node. No npm. No clone. Adds `pncsy` to `~/.local/bin`.
 
 <p align="center">
-  <img src="docs/screenshots/install-demo.png" alt="Terminal: curl install then pncsy learn LangGraph" width="760">
+  <img src="https://raw.githubusercontent.com/kushjaggi/pncsy/main/docs/screenshots/cli-demo.png" alt="Terminal workflow: generate an OmniVoice learning path, fill and strictly check it, then ship PDF and HTML" width="760">
 </p>
 
 ```bash
-# pin a release
-PNCSY_VERSION=1.0.4 curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh | bash
+# pin a release (the variable must be passed to bash, not curl)
+curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh \
+  | PNCSY_VERSION=1.1.0 bash
 ```
 
 Then try it:
 
 ```bash
-pncsy learn "LangGraph" --level advanced --depth deep
-# → langgraph-path.md + langgraph-path.prompt.md
+pncsy learn "OmniVoice Indian Speech Finetuning" \
+  --level advanced --depth deep
+# → a Markdown scaffold + agent fill prompt
 
 # when ready to ship (one-time: pncsy setup --node)
-pncsy node langgraph-path.md --pack --open
+pncsy check omnivoice-indian-speech-finetuning-path.md --strict
+pncsy node omnivoice-indian-speech-finetuning-path.md --pack --open
 ```
-
-<p align="center">
-  <img src="docs/screenshots/cli-demo.png" alt="Terminal: pncsy setup --node and pncsy node --pack" width="760">
-</p>
 
 ---
 
-## Output
+## What it produces
 
 <p align="center">
-  <img src="docs/screenshots/content-page.png" alt="Styled learning path — goals, concepts, resource tables" width="720">
+  <img src="https://raw.githubusercontent.com/kushjaggi/pncsy/main/docs/screenshots/content-page.png" alt="OmniVoice learning path content covering Hindi, Hinglish, Indian English, non-verbal tags, data, training, and evaluation" width="720">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/mermaid-diagram.png" alt="Mermaid flowchart rendered inline in the document" width="500">
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/toc-and-tables.png" alt="Auto-generated table of contents and styled tables" width="400">
+  <img src="https://raw.githubusercontent.com/kushjaggi/pncsy/main/docs/screenshots/project-docs.png" alt="Terminal help for ADR, architecture, flow, constraints, bug, and handover project records" width="760">
 </p>
 
-See a filled example: **[examples/demo/langgraph-path.md](examples/demo/langgraph-path.md)**
+The gallery shows the whole loop: a complex filled learning path, a strict contract check, PDF/HTML shipping, and the six project-record commands. See the checked-in example: **[examples/demo/omnivoice-indian-speech-finetuning-path.md](examples/demo/omnivoice-indian-speech-finetuning-path.md)**.
 
 ---
 
@@ -141,8 +140,8 @@ Re-running `learn` keeps your edits. Use `--force` only when you want a clean sl
 Agents drift — they drop a heading, leave `_placeholder_` text, or forget to resolve a `(verify)` tag. `pncsy check` rebuilds the scaffold from the `pncsy:learn` marker in your file and diffs against it:
 
 ```bash
-$ pncsy check langgraph-path.md
-langgraph-path.md  (LangGraph · intermediate · standard)
+$ pncsy check topic-path.md
+topic-path.md  (Topic · intermediate · standard)
 
   ✗ missing heading   ## Glossary
   ✗ placeholder left  _why it matters_ (line 61)
@@ -164,7 +163,7 @@ The same scaffold → fill → check loop, pointed at the docs an AI-assisted co
 | `pncsy adr "<decision>"` | Decision record | **Alternatives rejected** — if you can't name one, you had no choice, not a decision |
 | `pncsy arch ["<system>"]` | System map | **Boundaries** — what this system deliberately does not own |
 | `pncsy flow "<path>"` | Execution trace | **Failure modes** — what each hop does when it breaks |
-| `pncsy constraints` | Guardrails | **Never touch**, each with a concrete consequence |
+| `pncsy constraints` | Guardrails | **Never touch**, each with a concrete consequence; link it from `AGENTS.md` so agents load it |
 | `pncsy bug "<symptom>"` | Incident record | **Blast radius** — the other callers you checked |
 | `pncsy handover ["<label>"]` | Session handoff | **Next step** — exactly one, not a wishlist |
 
@@ -174,6 +173,9 @@ pncsy adr "Use Postgres over DynamoDB"
 ```
 
 Fill it with your agent, then `pncsy check` it like anything else.
+
+Unlabelled handovers are timestamped so a new session cannot silently reuse the
+first `handover.md`. Pass a label when you want a stable, named record.
 
 ### Docs about code rot. These say so.
 
@@ -198,6 +200,9 @@ pncsy node learn --init-config    # writes pncsy.learn.json
 ```
 
 Lookup: `--config <file>` → `./pncsy.learn.json` → `~/.config/pncsy/learn.json` → built-in defaults.
+
+Custom paths record the config that created them. Keep that file available:
+`pncsy check` uses Node to rebuild and verify the same shape.
 
 ```jsonc
 {
@@ -225,10 +230,10 @@ pncsy setup --node    # one-time
 ```
 
 ```bash
-pncsy node README.md           # PDF (default)
+pncsy node README.md --allow-html  # trusted raw HTML in this README
 pncsy node guide.md --html     # HTML only
 pncsy node guide.md --pack     # both
-pncsy node docs/               # every .md in a folder
+pncsy node docs/               # every .md except agent-only *.prompt.md
 ```
 
 **Transforms on ship:**
@@ -236,7 +241,8 @@ pncsy node docs/               # every .md in a folder
 - Strips “Sure! Here’s a comprehensive guide…” openings (`--no-polish` to keep)
 - Teal cover page from `#` title + subtitle + chips
 - Auto table of contents when ≥3 `##` headings
-- Renders Mermaid diagrams (waits for DOM, fits tall diagrams to one PDF page)
+- Renders Mermaid and Graphviz (`dot`) diagrams
+- Escapes raw HTML from Markdown by default; `--allow-html` is an explicit trust decision
 - Clickable GitHub / arXiv links (underlined in PDF)
 - Repo path linkification when `repo_base` is set in frontmatter
 
@@ -258,7 +264,7 @@ With `repo_base` set, `` `src/foo.py` `` and `` `docs/guide.md` `` become clicka
 Working sample: **[examples/repo-links.md](examples/repo-links.md)** — `pncsy node examples/repo-links.md --pack`
 
 <details>
-<summary><strong>All ship flags</strong></summary>
+<summary><strong>Additional ship flags</strong> (formats and output are shown above)</summary>
 
 | Flag | Effect |
 |------|--------|
@@ -266,6 +272,8 @@ Working sample: **[examples/repo-links.md](examples/repo-links.md)** — `pncsy 
 | `--no-cover` / `--no-toc` / `--no-polish` | Skip cover, TOC, or fluff cleanup |
 | `--no-repo-links` | Skip repo path / GitHub link enhancement |
 | `--repo-base` / `--repo-tree` | Override frontmatter repo link bases |
+| `--allow-html` | Render trusted raw HTML instead of escaping it |
+| `--no-sandbox` | Disable Chrome sandbox for root-only containers |
 | `--no-html-keep` | Delete intermediate HTML after PDF |
 | `--meta <text>` | Cover metadata line |
 | `--json` | `{ ok, results }` on stdout for agents |

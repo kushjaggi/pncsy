@@ -24,7 +24,7 @@ ln -sfn ~/Projects/pncsy/skill ~/.cursor/skills/pncsy
 Optional user rule (Cursor Settings → Rules):
 
 ```text
-Tool: pncsy. Learning paths: pncsy learn "<topic>". Ship docs: pncsy node file.md --pack.
+Tool: pncsy. Scaffold learning and project records, verify with pncsy check, ship with pncsy node file.md --pack.
 Never install marked/puppeteer/mermaid into the project. See AGENTS.md.
 ```
 
@@ -42,7 +42,7 @@ Or add to project `CLAUDE.md`:
 
 ```markdown
 ## pncsy
-Run `pncsy learn "<topic>"` for learning paths, `pncsy node file.md --pack` to ship PDF/HTML.
+Use `pncsy learn`, `adr`, `arch`, `flow`, `constraints`, `bug`, or `handover`; verify with `pncsy check`; ship with `pncsy node file.md --pack`.
 See AGENTS.md in this repo.
 ```
 
@@ -66,7 +66,7 @@ Or paste `AGENTS.md` / `skill/SKILL.md` into Windsurf **Memories** or workspace 
 2. Add to workspace `.clinerules`, `.roorules`, or Continue system prompt:
 
 ```text
-Use pncsy for learning paths (pncsy learn) and md→PDF/HTML (pncsy node file.md --pack).
+Use pncsy for checkable learning/project records and md→PDF/HTML. Run pncsy --help for commands.
 Full instructions: AGENTS.md in repo root.
 ```
 
@@ -79,6 +79,8 @@ Add to `.github/copilot-instructions.md` in your project:
 ```markdown
 # pncsy
 - Learning path: `pncsy learn "<topic>" --level intermediate --depth standard`
+- Project records: `pncsy adr|arch|flow|constraints|bug|handover`
+- Verify: `pncsy check path/to/doc.md --strict`
 - Ship markdown: `pncsy node path/to/doc.md --pack`
 - Do not add marked/puppeteer/mermaid to this project for doc export.
 ```

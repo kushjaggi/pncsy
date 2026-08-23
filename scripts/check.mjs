@@ -21,7 +21,7 @@ import {
   writeUnlessEdited,
 } from "./learn.mjs";
 import { DEFAULT_CONFIG } from "./learn.default.mjs";
-import { slugify, parseFrontmatter, polishMarkdown, injectAutoToc, linkifyRepoPaths, linkifyCodeInHtml, tagExternalLinks, wrapMermaid, wrapFigureSections, wrapPartHeadings, buildTocGroups, compactTocGroups, dotPathToSlash } from "./pncsy.mjs";
+import { slugify, parseFrontmatter, polishMarkdown, injectAutoToc, linkifyRepoPaths, linkifyCodeInHtml, tagExternalLinks, wrapMermaid, wrapFigureSections, wrapPartHeadings, buildTocGroups, compactTocGroups, dotPathToSlash, listMarkdownFiles, escapeRawHtml, stripContractMarkers, prepareDirectoryOutput, resolveOutputBase } from "./pncsy.mjs";
 
 let passed = 0;
 function check(name, fn) {
@@ -74,9 +74,9 @@ check("prompt carries params and no-invention rule", () => {
 });
 
 check("scaffold frontmatter parses back out", () => {
-  const md = buildPath({ topic: "LangGraph", level: "basic", depth: "quick" });
+  const md = buildPath({ topic: "OmniVoice", level: "basic", depth: "quick" });
   const { meta } = parseFrontmatter(md);
-  assert.strictEqual(meta.title, "LangGraph — Learning Path");
+  assert.strictEqual(meta.title, "OmniVoice — Learning Path");
   assert.strictEqual(meta.kicker, "Learning Path");
   assert.ok(Array.isArray(meta.chips) && meta.chips.includes("Prereqs"));
 });
@@ -87,6 +87,43 @@ check("polish strips assistant fluff but spares code", () => {
   );
   assert.ok(out.startsWith("# Real Title"), "fluff survived: " + out.slice(0, 40));
   assert.ok(out.includes("\n\n\n\nlet x = 1;"), "blank lines inside fence were collapsed");
+});
+
+check("raw Markdown HTML is escaped unless explicitly allowed", () => {
+  const escaped = escapeRawHtml({ text: '<script>globalThis.pwned = true</script>' });
+  assert.ok(!escaped.includes("<script>"), "executable tag survived");
+  assert.ok(escaped.includes("&lt;script&gt;"), "raw HTML was dropped instead of shown safely");
+});
+
+check("contract markers stay out of output but survive code examples", () => {
+  const marker = '<!-- pncsy:learn topic="Kafka" -->';
+  const md = `${marker}\n# Path\n\n\`\`\`html\n${marker}\n\`\`\``;
+  const stripped = stripContractMarkers(md);
+  assert.ok(stripped.startsWith("# Path"), "top-level marker survived");
+  assert.ok(stripped.includes(`\`\`\`html\n${marker}`), "marker inside code fence was deleted");
+});
+
+check("HTML shipping does not execute raw Markdown scripts by default", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-html-"));
+  try {
+    const input = path.join(dir, "unsafe.md");
+    const output = path.join(dir, "safe.html");
+    fs.writeFileSync(input, "# Safe\n\n<script>globalThis.PNCSY_PWNED = true</script>\n");
+    const shipped = spawnSync(process.execPath, [
+      path.join(scripts, "pncsy.mjs"),
+      input,
+      "--html",
+      "-o",
+      output,
+    ]);
+    assert.strictEqual(shipped.status, 0, shipped.stderr.toString());
+    const html = fs.readFileSync(output, "utf8");
+    assert.ok(!html.includes("<script>globalThis.PNCSY_PWNED"), "attacker script stayed executable");
+    assert.ok(html.includes("&lt;script&gt;"), "unsafe HTML was not shown safely");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 check("auto toc needs three h2 and links match slugs", () => {
@@ -289,6 +326,45 @@ check("collapsed toc links only to sections that exist", () => {
   assert.ok(group.items[1].includes("8 more sections"), "should say how many are hidden");
 });
 
+check("directory shipping skips agent fill prompts", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-list-"));
+  try {
+    for (const name of ["guide.md", "guide.prompt.md", "README.MD", "notes.txt"]) {
+      fs.writeFileSync(path.join(dir, name), "");
+    }
+    assert.deepStrictEqual(
+      listMarkdownFiles(dir).map((file) => path.basename(file)),
+      ["README.MD", "guide.md"]
+    );
+    assert.deepStrictEqual(
+      listMarkdownFiles(path.join(dir, "guide.prompt.md")),
+      [path.join(dir, "guide.prompt.md")],
+      "an explicitly named prompt should remain shippable"
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+check("directory shipping gives each input a distinct output base", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-output-"));
+  try {
+    const input = path.join(dir, "docs");
+    const output = path.join(dir, "built");
+    fs.mkdirSync(input);
+    const opts = prepareDirectoryOutput(input, { output });
+    assert.ok(fs.statSync(output).isDirectory(), "output directory was not created");
+    assert.strictEqual(resolveOutputBase(path.join(input, "one.md"), opts), path.join(output, "one"));
+    assert.strictEqual(resolveOutputBase(path.join(input, "two.md"), opts), path.join(output, "two"));
+    assert.throws(
+      () => prepareDirectoryOutput(input, { output: path.join(dir, "all.pdf") }),
+      /output directory/
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 check("part headings wrap with next section", () => {
   const html =
     '<h2 id="part-a-x">PART A — X</h2><h2 id="sec-1">1. First</h2><p>text</p>';
@@ -305,29 +381,29 @@ check("print layout and cover structure live in pncsy.mjs", () => {
   assert.ok(src.includes("toc-map"), "missing grouped toc");
 });
 
-// learn ships twice — bash for the no-Node install, Node for config/--ship.
+// learn ships twice — bash for the no-Node install, Node for custom config.
 // Same flags must give byte-identical files or curl users get a different tool.
 check("bash and node learn agree byte for byte", () => {
   const scripts = path.dirname(fileURLToPath(import.meta.url));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-parity-"));
   const combos = [
-    ["basic", "quick"],
-    ["intermediate", "standard"],
-    ["advanced", "deep"],
-    ["expert", "standard"],
+    ["Kafka Streams", "kafka-streams", "basic", "quick"],
+    ["foo_bar", "foo-bar", "intermediate", "standard"],
+    ["🔥", "u-f09f94a5", "advanced", "deep"],
+    ["C++ templates", "c-templates", "expert", "standard"],
   ];
   try {
-    for (const [level, depth] of combos) {
+    for (const [topic, slug, level, depth] of combos) {
       const sh = path.join(dir, `sh-${level}-${depth}`);
       const js = path.join(dir, `js-${level}-${depth}`);
-      const args = ["Kafka Streams", "--level", level, "--depth", depth, "-o"];
+      const args = [topic, "--level", level, "--depth", depth, "-o"];
 
       const a = spawnSync("bash", [path.join(scripts, "learn.sh"), ...args, sh]);
       assert.strictEqual(a.status, 0, `learn.sh failed: ${a.stderr}`);
       const b = spawnSync(process.execPath, [path.join(scripts, "pncsy.mjs"), "learn", ...args, js]);
       assert.strictEqual(b.status, 0, `learn.mjs failed: ${b.stderr}`);
 
-      for (const name of ["kafka-streams-path.md", "kafka-streams-path.prompt.md"]) {
+      for (const name of [`${slug}-path.md`, `${slug}-path.prompt.md`]) {
         assert.strictEqual(
           fs.readFileSync(path.join(sh, name), "utf8"),
           fs.readFileSync(path.join(js, name), "utf8"),
@@ -377,6 +453,46 @@ check("check-path catches a broken contract", () => {
   }
 });
 
+check("check-path honors the custom config that generated a path", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-custom-check-"));
+  try {
+    const configFile = path.join(dir, "custom.json");
+    fs.writeFileSync(
+      configFile,
+      JSON.stringify({
+        sections: [
+          ...DEFAULT_CONFIG.sections,
+          { id: "review", title: "Review gate", body: "_review proof_" },
+        ],
+      })
+    );
+    const built = spawnSync(process.execPath, [
+      path.join(scripts, "pncsy.mjs"),
+      "learn",
+      "Kafka",
+      "--config",
+      configFile,
+      "-o",
+      dir,
+    ]);
+    assert.strictEqual(built.status, 0, built.stderr.toString());
+
+    const file = path.join(dir, "kafka-path.md");
+    const filled = fs.readFileSync(file, "utf8").replace(/_[^_\n]+_/g, "filled");
+    assert.match(filled, /## Review gate/, "custom section was not generated");
+    fs.writeFileSync(file, filled);
+    const clean = spawnSync("bash", [path.join(scripts, "check-path.sh"), file]);
+    assert.strictEqual(clean.status, 0, clean.stdout.toString() + clean.stderr.toString());
+
+    fs.writeFileSync(file, filled.replace("## Review gate\n", ""));
+    const broken = spawnSync("bash", [path.join(scripts, "check-path.sh"), file]);
+    assert.strictEqual(broken.status, 1, "custom heading deletion went unnoticed");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // Every doc kind rides the same scaffold/fill/check contract as learn. If a new
 // kind lands without placeholders, or check cannot rebuild it, this catches it.
 check("every doc kind scaffolds and is checkable", () => {
@@ -396,8 +512,10 @@ check("every doc kind scaffolds and is checkable", () => {
       const built = spawnSync("bash", [path.join(scripts, "doc.sh"), ...args, "-o", dir]);
       assert.strictEqual(built.status, 0, `${kind} failed: ${built.stderr}`);
 
-      const base = subject ? `${slugify(subject)}-${kind}` : kind;
-      const file = path.join(dir, `${base}.md`);
+      const match = built.stderr.toString().match(/^Doc\s+(.+\.md)\s+\[wrote\]$/m);
+      assert.ok(match, `${kind} did not report its output`);
+      const file = match[1];
+      const base = path.basename(file, ".md");
       assert.ok(fs.existsSync(file), `${kind} wrote no doc`);
       assert.ok(fs.existsSync(path.join(dir, `${base}.prompt.md`)), `${kind} wrote no prompt`);
 
@@ -456,6 +574,173 @@ check("only code-tracking docs go stale", () => {
       const strict = spawnSync("bash", [path.join(scripts, "check-path.sh"), file, "--strict"]);
       assert.strictEqual(strict.status, shouldWarn ? 1 : 0, `${kind} --strict disagreed`);
     }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+check("marker metadata round-trips safely and H1 is contractual", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-marker-"));
+  try {
+    const subject = 'Use "strict" --> mode';
+    const built = spawnSync("bash", [path.join(scripts, "doc.sh"), "adr", subject, "-o", dir]);
+    assert.strictEqual(built.status, 0, built.stderr.toString());
+    const file = path.join(dir, "use-strict-mode-adr.md");
+    const raw = fs.readFileSync(file, "utf8");
+    const marker = raw.split("\n").find((line) => line.includes("pncsy:adr"));
+    assert.ok(marker.includes("%22") && marker.includes("%3E"), "unsafe marker metadata was not encoded");
+    assert.ok(!marker.includes("--> mode"), "subject terminated the metadata comment");
+
+    const filled = raw.replace(/_[^_\n]+_/g, "filled");
+    fs.writeFileSync(file, filled, "utf8");
+    const clean = spawnSync("bash", [path.join(scripts, "check-path.sh"), file]);
+    assert.strictEqual(clean.status, 0, clean.stdout.toString());
+    assert.match(clean.stdout.toString(), /Use "strict" --> mode/, "metadata did not round-trip");
+
+    fs.writeFileSync(file, filled.replace(/^# ADR:.*\n/m, ""), "utf8");
+    const missing = spawnSync("bash", [path.join(scripts, "check-path.sh"), file]);
+    assert.strictEqual(missing.status, 1, "deleted H1 went unnoticed");
+    assert.match(missing.stdout.toString(), /missing heading\s+# ADR:/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+check("unlabelled handovers do not reuse a stale session file", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-handover-"));
+  try {
+    const first = spawnSync("bash", [path.join(scripts, "doc.sh"), "handover", "-o", dir]);
+    assert.strictEqual(first.status, 0, first.stderr.toString());
+    const firstFile = first.stderr.toString().match(/^Doc\s+(.+\.md)\s+/m)?.[1];
+    assert.ok(firstFile && /handover-\d{4}-\d{2}-\d{2}-\d{6}-\d+\.md$/.test(firstFile));
+
+    const second = spawnSync("bash", [path.join(scripts, "doc.sh"), "handover", "-o", dir]);
+    const secondFile = second.stderr.toString().match(/^Doc\s+(.+\.md)\s+/m)?.[1];
+    assert.notStrictEqual(secondFile, firstFile, "new session kept an old handover");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+check("bash commands reject missing values and unknown setup flags cleanly", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const cli = path.join(root, "bin", "pncsy");
+  for (const args of [
+    ["learn", "Kafka", "--level"],
+    ["adr", "Choose Postgres", "--output"],
+    ["setup", "--unknown"],
+  ]) {
+    const out = spawnSync("bash", [cli, ...args]);
+    assert.strictEqual(out.status, 1, `${args.join(" ")} unexpectedly passed`);
+    assert.ok(!/unbound variable/.test(out.stderr.toString()), `${args.join(" ")} crashed in bash`);
+  }
+});
+
+check("dependency fetch stays on the installed release", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-fetch-"));
+  try {
+    fs.mkdirSync(path.join(dir, "scripts"));
+    fs.copyFileSync(path.join(scripts, "fetch-deps.mjs"), path.join(dir, "scripts", "fetch-deps.mjs"));
+    fs.writeFileSync(path.join(dir, "package.json"), '{"version":"9.8.7"}\n');
+
+    const payload = path.join(dir, "payload");
+    for (const name of ["marked", "mermaid", "puppeteer-core", "@viz-js/viz"]) {
+      fs.mkdirSync(path.join(payload, "node_modules", name), { recursive: true });
+      fs.writeFileSync(path.join(payload, "node_modules", name, "package.json"), "{}\n");
+    }
+    const archive = path.join(dir, "deps.tar.gz");
+    assert.strictEqual(
+      spawnSync("tar", ["czf", archive, "-C", payload, "node_modules"]).status,
+      0
+    );
+
+    const bin = path.join(dir, "bin");
+    fs.mkdirSync(bin);
+    const log = path.join(dir, "curl.log");
+    fs.writeFileSync(
+      path.join(bin, "curl"),
+      `#!/usr/bin/env bash\nprintf '%s\\n' "$2" > "${log}"\ncp "${archive}" "$4"\n`
+    );
+    fs.chmodSync(path.join(bin, "curl"), 0o755);
+    const out = spawnSync(process.execPath, [path.join(dir, "scripts", "fetch-deps.mjs")], {
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+    });
+    assert.strictEqual(out.status, 0, out.stderr.toString());
+    assert.match(fs.readFileSync(log, "utf8"), /v9\.8\.7\/pncsy-9\.8\.7-deps\.tar\.gz/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+check("installer upgrades cleanly without deleting fetched dependencies", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-install-"));
+  try {
+    const payload = path.join(dir, "payload");
+    fs.mkdirSync(path.join(payload, "bin"), { recursive: true });
+    fs.mkdirSync(path.join(payload, "scripts"));
+    fs.copyFileSync(path.join(root, "bin", "pncsy"), path.join(payload, "bin", "pncsy"));
+    fs.writeFileSync(path.join(payload, "package.json"), '{"version":"9.8.7"}\n');
+    const archive = path.join(dir, "release.tar.gz");
+    assert.strictEqual(spawnSync("tar", ["czf", archive, "-C", payload, "."]).status, 0);
+
+    const home = path.join(dir, "home");
+    const installed = path.join(home, ".local", "share", "pncsy");
+    fs.mkdirSync(path.join(installed, "scripts"), { recursive: true });
+    fs.mkdirSync(path.join(installed, "node_modules", "marked"), { recursive: true });
+    fs.writeFileSync(path.join(installed, "scripts", "removed.sh"), "stale\n");
+    fs.writeFileSync(path.join(installed, "node_modules", "marked", "package.json"), "{}\n");
+
+    const bin = path.join(dir, "fake-bin");
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, "curl"), "#!/usr/bin/env bash\ncat \"$FIXTURE\"\n");
+    fs.chmodSync(path.join(bin, "curl"), 0o755);
+    const out = spawnSync("bash", [path.join(root, "scripts", "install.sh")], {
+      env: {
+        ...process.env,
+        HOME: home,
+        PATH: `${bin}:${process.env.PATH}`,
+        FIXTURE: archive,
+        PNCSY_VERSION: "9.8.7",
+      },
+    });
+    assert.strictEqual(out.status, 0, out.stderr.toString());
+    assert.ok(!fs.existsSync(path.join(installed, "scripts", "removed.sh")), "stale file survived");
+    assert.ok(
+      fs.existsSync(path.join(installed, "node_modules", "marked", "package.json")),
+      "upgrade deleted separately fetched dependencies"
+    );
+    assert.ok(fs.existsSync(path.join(home, ".local", "bin", "pncsy")), "wrapper missing");
+
+    const sourceRoot = path.join(dir, "source");
+    fs.mkdirSync(path.join(sourceRoot, "pncsy-main"), { recursive: true });
+    fs.cpSync(payload, path.join(sourceRoot, "pncsy-main"), { recursive: true });
+    const sourceArchive = path.join(dir, "source.tar.gz");
+    assert.strictEqual(
+      spawnSync("tar", ["czf", sourceArchive, "-C", sourceRoot, "pncsy-main"]).status,
+      0
+    );
+    fs.writeFileSync(
+      path.join(bin, "curl"),
+      '#!/usr/bin/env bash\n[[ "$*" == *api.github.com* ]] && exit 22\ncat "$SOURCE_FIXTURE"\n'
+    );
+    const fallbackHome = path.join(dir, "fallback-home");
+    const fallback = spawnSync("bash", [path.join(root, "scripts", "install.sh")], {
+      env: {
+        ...process.env,
+        HOME: fallbackHome,
+        PATH: `${bin}:${process.env.PATH}`,
+        SOURCE_FIXTURE: sourceArchive,
+      },
+    });
+    assert.strictEqual(fallback.status, 0, fallback.stderr.toString());
+    assert.ok(
+      fs.existsSync(path.join(fallbackHome, ".local", "share", "pncsy", "bin", "pncsy")),
+      "source fallback did not install the extracted repository root"
+    );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

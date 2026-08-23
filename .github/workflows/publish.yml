@@ -4,9 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  release:
-    types: [published]
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,8 +11,31 @@ permissions:
   id-token: write
 
 jobs:
+  test:
+    name: Verify release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+      - run: npm run check
+
+      - name: Match tag to package version
+        if: github.ref_type == 'tag'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          test "${GITHUB_REF_NAME}" = "v${VERSION}" || {
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json v${VERSION}" >&2
+            exit 1
+          }
+
   publish-github-packages:
     name: GitHub Packages
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,32 +52,13 @@ jobs:
       - name: Publish to GitHub Packages
         run: |
           npm pkg set name=@kushjaggi/pncsy
-          npm publish --provenance --access public
+          npm publish --registry=https://npm.pkg.github.com --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publish-npm:
-    name: npm registry
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org
-
-      - name: Install deps
-        run: npm ci --omit=dev || npm install --omit=dev
-
-      - name: Publish to npm
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
   bundle-release:
     name: Standalone bundle (no npm install)
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -74,7 +75,9 @@ jobs:
         run: |
           VER=$(node -p "require('./package.json').version")
           echo "version=$VER" >> "$GITHUB_OUTPUT"
-          tar czf "pncsy-${VER}.tar.gz" bin scripts skill AGENTS.md README.md LICENSE package.json
+          tar --exclude=scripts/capture-screenshots.mjs \
+            -czf "pncsy-${VER}.tar.gz" bin scripts skill examples \
+            AGENTS.md README.md LICENSE package.json
           tar czf "pncsy-${VER}-deps.tar.gz" node_modules
 
       - name: Upload GitHub release

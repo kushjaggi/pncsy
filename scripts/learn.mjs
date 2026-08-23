@@ -23,11 +23,21 @@ function titleCase(s) {
 function slug(text) {
   return String(text)
     .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
     .slice(0, 60);
+}
+
+function pathSlug(text) {
+  return slug(text) || `u-${Buffer.from(String(text)).toString("hex").slice(0, 12)}`;
+}
+
+function markerEscape(text) {
+  return String(text)
+    .replace(/%/g, "%25")
+    .replace(/"/g, "%22")
+    .replace(/</g, "%3C")
+    .replace(/>/g, "%3E");
 }
 
 /** Top-level keys replace; `depths` merges per depth so you can retune one. */
@@ -135,7 +145,7 @@ function renderChips(config, ladder) {
 }
 
 export function buildPath(opts, config = DEFAULT_CONFIG) {
-  const { topic, level, depth } = opts;
+  const { topic, level, depth, configSource = "" } = opts;
   const ladder = ladderFor(level, config);
   const vars = baseVars(opts, config);
 
@@ -169,7 +179,7 @@ chips: [${renderChips(config, ladder).join(", ")}]
 format: pdf
 ---
 
-<!-- pncsy:learn topic="${topic}" level="${level}" depth="${depth}" -->
+<!-- pncsy:learn topic="${markerEscape(topic)}" level="${level}" depth="${depth}" config="${markerEscape(configSource)}" encoding="percent" -->
 <!-- Fill with the sibling .prompt.md file. Keep every heading and its order. -->
 
 # ${topic} — Learning Path
@@ -210,7 +220,7 @@ Edit this file to change the plan, then re-run the fill. Structure is fixed on p
 
 ## Task
 
-Fill \`${slug(topic)}-path.md\` in place. Keep every heading and its order. Replace italic placeholders and the example table rows. Delete the guidance comments as you go, but keep the \`pncsy:learn\` line — \`pncsy check\` needs it to verify the result.
+Fill \`${pathSlug(topic)}-path.md\` in place. Keep every heading and its order. Replace italic placeholders and the example table rows. Delete the guidance comments as you go, but keep the \`pncsy:learn\` line — \`pncsy check\` needs it to verify the result.
 
 ## Parameters
 
@@ -237,7 +247,7 @@ ${ruleList.join("\n")}
 ## Ship it
 
 \`\`\`bash
-pncsy node "${slug(topic)}-path.md" --pack --open
+pncsy node "${pathSlug(topic)}-path.md" --pack --open
 \`\`\`
 `;
 }
@@ -254,8 +264,6 @@ Options:
   --config <file> Use a specific config (default: ./${CONFIG_NAME}, then ~/.config/pncsy/learn.json)
   --init-config   Write an editable ${CONFIG_NAME} and exit
   --force         Overwrite existing files (default: keep them)
-  --ship          Render PDF right after scaffolding
-  --open          Open result (implies --ship)
   -h, --help
 `);
   process.exit(code);
@@ -269,25 +277,34 @@ export function parseLearnArgs(args) {
     output: null,
     config: null,
     initConfig: false,
-    ship: false,
-    open: false,
     force: false,
+  };
+  const value = (name, i) => {
+    if (!args[i + 1] || args[i + 1].startsWith("-")) {
+      console.error(name + " needs a value");
+      usage(1);
+    }
+    return args[i + 1];
   };
 
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === "-h" || a === "--help") usage(0);
-    else if (a === "--level" && args[i + 1]) opts.level = args[++i].toLowerCase();
-    else if (a === "--depth" && args[i + 1]) opts.depth = args[++i].toLowerCase();
-    else if ((a === "-o" || a === "--output") && args[i + 1]) opts.output = args[++i];
-    else if (a === "--config" && args[i + 1]) opts.config = args[++i];
-    else if (a === "--init-config") opts.initConfig = true;
+    else if (a === "--level") {
+      opts.level = value(a, i).toLowerCase();
+      i++;
+    } else if (a === "--depth") {
+      opts.depth = value(a, i).toLowerCase();
+      i++;
+    } else if (a === "-o" || a === "--output") {
+      opts.output = value(a, i);
+      i++;
+    } else if (a === "--config") {
+      opts.config = value(a, i);
+      i++;
+    } else if (a === "--init-config") opts.initConfig = true;
     else if (a === "--force") opts.force = true;
-    else if (a === "--ship") opts.ship = true;
-    else if (a === "--open") {
-      opts.open = true;
-      opts.ship = true;
-    } else if (a.startsWith("-")) {
+    else if (a.startsWith("-")) {
       console.error("Unknown option: " + a);
       usage(1);
     } else if (!opts.topic) opts.topic = a;
@@ -299,6 +316,10 @@ export function parseLearnArgs(args) {
 
 function validate(opts, config) {
   if (!opts.topic) usage(1);
+  if (/[\r\n]/.test(opts.topic)) {
+    console.error("Topic must be one line");
+    process.exit(1);
+  }
   if (!config.levels.includes(opts.level)) {
     console.error("Bad level. Use: " + config.levels.join(" | "));
     process.exit(1);
@@ -310,7 +331,7 @@ function validate(opts, config) {
 }
 
 function resolveTargets(opts) {
-  const base = `${slug(opts.topic)}-path`;
+  const base = `${pathSlug(opts.topic)}-path`;
   let dir = process.cwd();
   let name = base;
 
@@ -363,8 +384,9 @@ export async function runLearn(args) {
   const { config, source } = loadConfig(opts.config);
   validate(opts, config);
 
+  const generated = { ...opts, configSource: source === "built-in" ? "" : source };
   const { pathFile, promptFile } = resolveTargets(opts);
-  const pathState = writeUnlessEdited(pathFile, buildPath(opts, config), opts.force);
+  const pathState = writeUnlessEdited(pathFile, buildPath(generated, config), opts.force);
   const promptState = writeUnlessEdited(promptFile, buildPrompt(opts, config), opts.force);
 
   console.error("Path   " + pathFile + "  [" + pathState + "]");
@@ -374,9 +396,4 @@ export async function runLearn(args) {
     console.error("Note   existing files left alone. --force to regenerate.");
   }
   console.error("Next   fill path using prompt, then: pncsy node \"" + pathFile + "\" --pack");
-
-  if (opts.ship) {
-    const { shipFiles } = await import("./pncsy.mjs");
-    await shipFiles(pathFile, { format: "pdf", open: opts.open });
-  }
 }

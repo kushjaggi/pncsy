@@ -47,7 +47,18 @@ marker="$(grep -m1 'pncsy:[a-z]' "$FILE" || true)"
 KIND="$(printf '%s\n' "$marker" | sed -n 's/.*pncsy:\([a-z][a-z]*\).*/\1/p')"
 [[ -n "$KIND" ]] || die "marker names no kind"
 
-attr() { printf '%s\n' "$marker" | sed -n "s/.*$1=\"\([^\"]*\)\".*/\1/p"; }
+marker_unescape() {
+  sed -e 's/%3E/>/g' -e 's/%3C/</g' -e 's/%22/"/g' -e 's/%25/%/g'
+}
+
+attr() {
+  value="$(printf '%s\n' "$marker" | sed -n "s/.*$1=\"\([^\"]*\)\".*/\1/p")"
+  if [[ "$marker" == *'encoding="percent"'* ]]; then
+    printf '%s\n' "$value" | marker_unescape
+  else
+    printf '%s\n' "$value"
+  fi
+}
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -56,10 +67,21 @@ trap 'rm -rf "$tmp"' EXIT
 # contain, so the expected shape can never drift from the generator.
 if [[ "$KIND" == "learn" ]]; then
   TOPIC="$(attr topic)"; LEVEL="$(attr level)"; DEPTH="$(attr depth)"
+  CONFIG="$(attr config)"
   [[ -n "$TOPIC" && -n "$LEVEL" && -n "$DEPTH" ]] || die "marker is missing topic/level/depth"
   LABEL="$TOPIC · $LEVEL · $DEPTH"
-  bash "$ROOT/scripts/learn.sh" "$TOPIC" --level "$LEVEL" --depth "$DEPTH" -o "$tmp" --force >/dev/null 2>&1 \
-    || die "could not rebuild the scaffold for level=$LEVEL depth=$DEPTH"
+  if [[ -n "$CONFIG" ]]; then
+    [[ -f "$CONFIG" ]] || die "custom config no longer exists: $CONFIG"
+    NODE="${PNCSY_NODE:-node}"
+    command -v "$NODE" >/dev/null 2>&1 || [[ -x "$NODE" ]] \
+      || die "custom learning paths need Node to check their config"
+    "$NODE" "$ROOT/scripts/pncsy.mjs" learn "$TOPIC" --level "$LEVEL" --depth "$DEPTH" \
+      --config "$CONFIG" -o "$tmp" --force >/dev/null 2>&1 \
+      || die "could not rebuild the custom scaffold"
+  else
+    bash "$ROOT/scripts/learn.sh" "$TOPIC" --level "$LEVEL" --depth "$DEPTH" -o "$tmp" --force >/dev/null 2>&1 \
+      || die "could not rebuild the scaffold for level=$LEVEL depth=$DEPTH"
+  fi
 else
   SUBJECT="$(attr subject)"
   LABEL="$KIND${SUBJECT:+ · $SUBJECT}"
@@ -75,7 +97,7 @@ fi
 EXPECTED="$(find "$tmp" -name '*.md' ! -name '*.prompt.md' | head -1)"
 [[ -n "$EXPECTED" ]] || die "scaffold rebuild produced no file"
 
-headings() { grep -E '^#{2,3} ' "$1" | sed 's/[[:space:]]*$//' || true; }
+headings() { grep -E '^#{1,3} ' "$1" | sed 's/[[:space:]]*$//' || true; }
 headings "$EXPECTED" > "$tmp/exp"
 headings "$FILE" > "$tmp/got"
 sort "$tmp/exp" > "$tmp/exp.s"

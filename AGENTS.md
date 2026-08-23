@@ -4,7 +4,7 @@ Instructions for **any AI coding agent** (Cursor, Claude Code, Windsurf, Cline, 
 
 ## Tool
 
-**`pncsy`** — structured learning paths + share-ready PDF/HTML from Markdown.
+**`pncsy`** — checkable learning and engineering records, plus share-ready PDF/HTML from Markdown.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh | bash
@@ -26,12 +26,12 @@ curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/instal
 | PDF + HTML | `pncsy node "<file.md>" --pack` |
 | Custom structure | `pncsy node learn --init-config` → edit `pncsy.learn.json` |
 
-## Learning path workflow
+## Scaffold → fill → check → ship
 
-1. `pncsy learn "<topic>" …` → writes `<slug>-path.md` + `<slug>-path.prompt.md`
+1. Choose the matching learning or project-record command → it writes `.md` + `.prompt.md`
 2. Read `.prompt.md`, fill `.md` in place (keep every heading; `(verify)` on uncertain links)
-3. `pncsy check "<slug>-path.md"` → fix anything it reports, then re-run until clean
-4. `pncsy node "<slug>-path.md" --pack --open`
+3. `pncsy check "<file.md>" --strict` → fix anything it reports, then re-run until clean
+4. When sharing is needed, `pncsy node "<file.md>" --pack --open`
 
 Keep the `<!-- pncsy:learn … -->` line when filling. Deleting it makes step 3 impossible.
 

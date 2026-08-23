@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * pncsy — ship Markdown as print-ready docs (PDF / HTML / pack).
- * Solves: AI/agent .md dumps look amateur when shared.
+ * pncsy renderer — ship any Markdown artifact as PDF / HTML / pack.
  * Theme: scripts/theme.css (do not flatten).
  */
 
@@ -33,7 +32,8 @@ function usage(code = 1) {
   console.error(`pncsy <file.md|dir> [options]
 pncsy learn "<topic>" [--level x] [--depth y]
 
-Ship Markdown as share-ready docs. Default: polished PDF.
+Ship learning paths, engineering records, or any Markdown as share-ready docs.
+Default: polished PDF.
 
 Formats:
   --pdf                 PDF only (default)
@@ -52,6 +52,8 @@ Cover / meta:
   --no-repo-links       Skip repo path / GitHub link enhancement
   --repo-base <url>     GitHub blob base (overrides frontmatter repo_base)
   --repo-tree <url>     GitHub tree base for directory paths ending in /
+  --allow-html          Render raw Markdown HTML (trusted files only)
+  --no-sandbox          Disable Chrome sandbox (root-only containers)
 
 Output:
   -o, --output <path>   Output file or directory
@@ -81,6 +83,8 @@ function defaultOpts() {
     repoLinks: true,
     repoBase: null,
     repoTree: null,
+    allowHtml: false,
+    noSandbox: false,
     keepHtml: true,
     open: false,
     chrome: null,
@@ -113,31 +117,61 @@ function parseArgs(argv) {
   const opts = defaultOpts();
 
   const args = argv.slice(2);
+  const value = (name, i) => {
+    if (args[i + 1] == null || args[i + 1].startsWith("-")) {
+      log(name + " needs a value");
+      usage(1);
+    }
+    return args[i + 1];
+  };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === "-h" || a === "--help") usage(0);
-    else if ((a === "-o" || a === "--output") && args[i + 1]) opts.output = args[++i];
-    else if ((a === "-f" || a === "--format") && args[i + 1]) opts.format = args[++i].toLowerCase();
+    else if (a === "-o" || a === "--output") {
+      opts.output = value(a, i);
+      i++;
+    } else if (a === "-f" || a === "--format") {
+      opts.format = value(a, i).toLowerCase();
+      i++;
+    }
     else if (a === "--pdf") opts.wantPdf = true;
     else if (a === "--html") opts.wantHtml = true;
     else if (a === "--pack") {
       opts.wantPdf = true;
       opts.wantHtml = true;
       opts.format = "pack";
-    } else if (a === "--subtitle" && args[i + 1]) opts.subtitle = args[++i];
-    else if (a === "--kicker" && args[i + 1]) opts.kicker = args[++i];
-    else if (a === "--chips" && args[i + 1])
-      opts.chips = args[++i].split(",").map((s) => s.trim()).filter(Boolean);
-    else if (a === "--meta" && args[i + 1]) opts.meta = args[++i];
+    } else if (a === "--subtitle") {
+      opts.subtitle = value(a, i);
+      i++;
+    } else if (a === "--kicker") {
+      opts.kicker = value(a, i);
+      i++;
+    } else if (a === "--chips") {
+      opts.chips = value(a, i).split(",").map((s) => s.trim()).filter(Boolean);
+      i++;
+    } else if (a === "--meta") {
+      opts.meta = value(a, i);
+      i++;
+    }
     else if (a === "--no-cover") opts.cover = false;
     else if (a === "--no-toc") opts.toc = false;
     else if (a === "--no-polish") opts.polish = false;
     else if (a === "--no-repo-links") opts.repoLinks = false;
-    else if (a === "--repo-base" && args[i + 1]) opts.repoBase = args[++i];
-    else if (a === "--repo-tree" && args[i + 1]) opts.repoTree = args[++i];
+    else if (a === "--allow-html") opts.allowHtml = true;
+    else if (a === "--no-sandbox") opts.noSandbox = true;
+    else if (a === "--repo-base") {
+      opts.repoBase = value(a, i);
+      i++;
+    } else if (a === "--repo-tree") {
+      opts.repoTree = value(a, i);
+      i++;
+    }
     else if (a === "--no-html-keep") opts.keepHtml = false;
     else if (a === "--open") opts.open = true;
-    else if (a === "--chrome" && args[i + 1]) opts.chrome = args[++i];
+    else if (a === "--chrome") {
+      opts.chrome = value(a, i);
+      i++;
+    }
     else if (a === "--json") opts.json = true;
     else if (a.startsWith("-")) {
       log("Unknown option: " + a);
@@ -154,14 +188,16 @@ function parseArgs(argv) {
 }
 
 function ensureDeps() {
-  const marker = path.join(ROOT, "node_modules", "marked", "package.json");
-  if (fs.existsSync(marker)) return;
+  const required = ["marked", "mermaid", "puppeteer-core", "@viz-js/viz"];
+  const ready = () =>
+    required.every((name) => fs.existsSync(path.join(ROOT, "node_modules", name, "package.json")));
+  if (ready()) return;
   log("[pncsy] installing deps (this package only)…");
   const r2 = spawnSync(process.execPath, [path.join(__dirname, "fetch-deps.mjs")], {
     cwd: ROOT,
     stdio: "inherit",
   });
-  if (r2.status === 0 && fs.existsSync(marker)) return;
+  if (r2.status === 0 && ready()) return;
   const hasNpm =
     spawnSync("npm", ["--version"], { shell: process.platform === "win32", stdio: "ignore" })
       .status === 0;
@@ -171,7 +207,7 @@ function ensureDeps() {
       stdio: "inherit",
       shell: process.platform === "win32",
     });
-    if (r.status === 0 && fs.existsSync(marker)) return;
+    if (r.status === 0 && ready()) return;
   }
   log("[pncsy] deps missing. Run: pncsy setup --node");
   process.exit(1);
@@ -191,6 +227,21 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function escapeRawHtml(token) {
+  return escapeHtml(token.text);
+}
+
+function stripContractMarkers(md) {
+  let inFence = false;
+  return String(md)
+    .split("\n")
+    .filter((line) => {
+      if (/^```/.test(line.trim())) inFence = !inFence;
+      return inFence || !/^<!--\s*pncsy:[a-z].*-->\s*$/.test(line);
+    })
+    .join("\n");
 }
 
 function slugify(text) {
@@ -875,7 +926,9 @@ function listMarkdownFiles(inputPath) {
   if (!st.isDirectory()) return [];
   return fs
     .readdirSync(inputPath)
-    .filter((f) => /\.md$/i.test(f))
+    // Fill prompts are instructions for an agent, not documents to publish.
+    // They remain shippable when named explicitly.
+    .filter((f) => /\.md$/i.test(f) && !/\.prompt\.md$/i.test(f))
     .map((f) => path.join(inputPath, f))
     .sort();
 }
@@ -892,7 +945,7 @@ async function renderOne(filePath, opts, tools) {
   const { meta: fm, body: afterFm } = parseFrontmatter(raw);
   let localOpts = applyFrontmatter(opts, fm);
 
-  let md = afterFm;
+  let md = stripContractMarkers(afterFm);
   if (localOpts.polish) md = polishMarkdown(md);
   const repoFm = {
     ...fm,
@@ -907,7 +960,7 @@ async function renderOne(filePath, opts, tools) {
 
   // Drop duplicate H1 from body when cover shows it
   const bodyMd = localOpts.cover ? md.replace(/^#\s+.+\n+/, "") : md;
-  let bodyHtml = markedParse(bodyMd);
+  let bodyHtml = markedParse(bodyMd, localOpts.allowHtml);
   bodyHtml = tagExternalLinks(bodyHtml);
   if (localOpts.repoLinks && repoFm.repo_base) {
     bodyHtml = linkifyCodeInHtml(bodyHtml, repoFm);
@@ -953,7 +1006,7 @@ preparePrintLayout();</script>`;
     const browser = await puppeteer.launch({
       executablePath: chrome,
       headless: true,
-      args: ["--no-sandbox", "--disable-gpu"],
+      args: [...(localOpts.noSandbox ? ["--no-sandbox"] : []), "--disable-gpu"],
     });
     try {
       const page = await browser.newPage();
@@ -1025,12 +1078,23 @@ function resolveOutputBase(filePath, opts) {
   return out;
 }
 
+function prepareDirectoryOutput(input, opts) {
+  if (!fs.statSync(input).isDirectory() || !opts.output) return opts;
+  const out = path.resolve(opts.output);
+  if (/\.(pdf|html)$/i.test(out) || (fs.existsSync(out) && !fs.statSync(out).isDirectory())) {
+    throw new Error("Directory input needs an output directory, not one output file");
+  }
+  fs.mkdirSync(out, { recursive: true });
+  return { ...opts, output: out };
+}
+
 async function ship(opts) {
   const input = path.resolve(opts.input);
   if (!fs.existsSync(input)) {
     log("Missing: " + input);
     process.exit(1);
   }
+  opts = prepareDirectoryOutput(input, opts);
 
   ensureDeps();
   const chrome = findChrome(opts.chrome);
@@ -1038,12 +1102,16 @@ async function ship(opts) {
   if (typeof marked.setOptions === "function") {
     marked.setOptions({ gfm: true, breaks: false });
   }
-  const markedParse =
+  const parseMarked =
     typeof marked.parse === "function"
       ? marked.parse.bind(marked)
       : typeof marked === "function"
         ? marked
         : marked.marked.parse.bind(marked.marked);
+  const safeRenderer = new marked.Renderer();
+  safeRenderer.html = escapeRawHtml;
+  const markedParse = (md, allowHtml) =>
+    parseMarked(md, allowHtml ? undefined : { renderer: safeRenderer });
 
   const puppeteer = await loadPuppeteer();
   const css = fs.readFileSync(THEME_PATH, "utf8");
@@ -1084,11 +1152,6 @@ async function ship(opts) {
   return results;
 }
 
-/** Programmatic entry, used by `pncsy learn --ship`. */
-export async function shipFiles(input, overrides = {}) {
-  return ship(normalizeFormat({ ...defaultOpts(), ...overrides, input }));
-}
-
 async function main() {
   if (process.argv[2] === "learn") {
     const { runLearn } = await import("./learn.mjs");
@@ -1112,6 +1175,11 @@ export {
   buildTocGroups,
   compactTocGroups,
   dotPathToSlash,
+  listMarkdownFiles,
+  escapeRawHtml,
+  stripContractMarkers,
+  prepareDirectoryOutput,
+  resolveOutputBase,
 };
 
 const invokedDirectly = (() => {
