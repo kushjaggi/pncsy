@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,7 +22,7 @@ jobs:
         with:
           node-version: 20
 
-      - run: npm ci
+      - run: npm ci || npm install --no-fund --no-audit
       - run: npm run check
 
       - name: Match tag to package version
