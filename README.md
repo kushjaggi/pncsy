@@ -6,7 +6,7 @@
 
 **Scaffold it. Check it. Ship it.**
 
-`pncsy` turns agent work into durable artifacts: **learning paths, ADRs, architecture maps, execution flows, constraints, bug records, and handovers** with a checkable contract, plus share-ready PDF/HTML from Markdown.
+`pncsy` creates structured learning paths and six verifiable engineering record types: **ADRs, architecture maps, execution flows, constraints, bug records, and handovers**. Agents fill the generated scaffold, `pncsy check` verifies its structure, and optional Node tooling ships any Markdown as PDF/HTML.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/kushjaggi/pncsy/main/docs/screenshots/cover-page.png" alt="PDF cover — OmniVoice fine-tuning for Hindi, Hinglish, Indian English, and non-verbal tags" width="720">
@@ -39,11 +39,15 @@
 
 ```mermaid
 flowchart LR
-  A["pncsy learn / adr / arch /\nflow / constraints / bug / handover"] --> B["artifact.md\n+ artifact.prompt.md"]
-  B --> C["Your agent\nfills the scaffold"]
-  C --> D["pncsy check topic-path.md"]
-  D --> E["pncsy node topic-path.md --pack"]
-  E --> F["PDF + HTML"]
+  A{"Choose an artifact"} --> L["Learning path"]
+  A --> R["Engineering record"]
+  L --> B["Generated scaffold\n+ fill prompt"]
+  R --> B
+  B --> C["Agent fills the Markdown"]
+  C --> D["pncsy check\nverifies structure"]
+  D --> E{"Need a shareable file?"}
+  E -->|"Optional"| F["pncsy node\nships PDF / HTML"]
+  E -->|"No"| G["Checked Markdown"]
 ```
 
 **Two tiers.**
