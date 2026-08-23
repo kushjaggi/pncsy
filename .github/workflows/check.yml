@@ -21,3 +21,5 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm ci || npm install --no-fund --no-audit
       - run: npm run check
+      # Dogfood the repo gate: pncsy's own docs must keep their contract.
+      - run: bash scripts/check-path.sh .

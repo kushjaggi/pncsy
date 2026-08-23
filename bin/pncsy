@@ -22,7 +22,9 @@ pncsy — scaffold, check, and ship durable docs
 
 No Node required:
   pncsy learn "<topic>" [--level x] [--depth y]
-  pncsy check <file.md>    verify a filled doc kept its shape
+  pncsy check [file|dir]   verify filled docs kept their shape
+                           no argument scans the repo — one CI gate
+                           --json for agents, --strict to fail on warnings
   pncsy setup              show install status
 
 Project docs (scaffold + fill prompt, same check contract):
@@ -42,6 +44,7 @@ Examples:
   pncsy learn "OmniVoice fine-tuning" --level advanced --depth deep
   pncsy adr "Use Postgres over DynamoDB"
   pncsy check omnivoice-fine-tuning-path.md --strict
+  pncsy check --json            every pncsy doc in the repo, machine-readable
   pncsy node omnivoice-fine-tuning-path.md --pack --open
 EOF
   exit "${1:-1}"

@@ -1,6 +1,6 @@
 {
   "name": "pncsy",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Scaffold, verify, and ship learning paths, engineering records, and Markdown as PDF/HTML.",
   "type": "module",
   "bin": {

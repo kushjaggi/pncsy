@@ -22,7 +22,7 @@ Install: `curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scri
 | Command | Needs Node |
 |---------|------------|
 | `pncsy learn "<topic>"` | No — pure bash, always works |
-| `pncsy check <file.md>` | No — verifies any filled scaffold |
+| `pncsy check [file\|dir]` | No — verifies filled scaffolds; no argument scans the repo |
 | `pncsy adr` `arch` `flow` `constraints` `bug` `handover` | No — project doc scaffolds |
 | `pncsy node <file.md>` | Yes — PDF, HTML, Mermaid |
 | `pncsy node learn --init-config` | Yes — custom config |
@@ -83,6 +83,30 @@ Config: `pncsy node learn --init-config` → `pncsy.learn.json` (or `~/.config/p
 | Hand off / end of session notes | `pncsy handover` |
 
 Same loop as learn: scaffold + `.prompt.md` → fill → `pncsy check`. Keep the `<!-- pncsy:<kind> … -->` line.
+
+### Offer a record unprompted
+
+Do not interrupt for small edits. Stop and offer once, in one line, when the
+reasoning would otherwise vanish from the diff:
+
+| About to | Offer |
+|----------|-------|
+| Add a dependency, choose between libraries, introduce a new pattern | `pncsy adr` |
+| Fix a bug in a shared function | `pncsy bug` (blast radius = the other callers) |
+| Finish tracing a code path | `pncsy flow` |
+| Learn a "never touch this" rule the hard way | `pncsy constraints` |
+| End a session with work in flight | `pncsy handover` |
+
+Declined? Leave a code comment with the reason; do not ask twice.
+
+### Verify everything at once
+
+`pncsy check` with no argument scans the repo. Use `--json` and fix each
+`findings[].detail` until `ok` is true.
+
+```bash
+pncsy check --json
+```
 
 Never invent a path, function, or line you have not read — tag unconfirmed claims `(verify)`. `arch` and `flow` record the commit they describe and go stale when HEAD moves; regenerate instead of patching.
 

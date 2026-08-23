@@ -453,6 +453,82 @@ check("check-path catches a broken contract", () => {
   }
 });
 
+check("one command gates a whole directory of docs", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const checker = path.join(scripts, "check-path.sh");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-scan-"));
+  const doc = path.join(scripts, "doc.sh");
+  try {
+    for (const [kind, subject] of [["adr", "Pick Postgres"], ["bug", "Null deref"]]) {
+      const made = spawnSync("bash", [doc, kind, subject, "-o", dir]);
+      assert.strictEqual(made.status, 0, `${kind} scaffold failed: ${made.stderr}`);
+    }
+    // A doc nobody generated must not drag the scan down with a false finding.
+    // A marker-less file also has to leave `pipefail` alone — one plain README
+    // used to abort the entire scan before it printed anything.
+    fs.writeFileSync(path.join(dir, "notes.md"), "# Just notes\n\nNo marker here.\n", "utf8");
+    // Docs *about* pncsy mention the marker in prose and in examples. Treating
+    // those as generated docs makes the gate flag a project's own README.
+    fs.writeFileSync(
+      path.join(dir, "about.md"),
+      "# About\n\nKeep the `<!-- pncsy:learn … -->` line when filling.\n\n" +
+        "```\n<!-- pncsy:adr subject=\"example\" -->\n```\n",
+      "utf8"
+    );
+
+    const scan = spawnSync("bash", [checker, dir]);
+    const out = scan.stdout.toString();
+    assert.strictEqual(scan.status, 1, "unfilled scaffolds should fail the scan");
+    assert.ok(out.includes("Pick Postgres"), "scan skipped the adr");
+    assert.ok(out.includes("Null deref"), "scan skipped the bug record");
+    assert.ok(!out.includes("notes.md"), "scan picked up a file with no pncsy marker");
+    assert.ok(!out.includes("about.md"), "a doc that only mentions the marker was scanned");
+    assert.match(out, /2 file\(s\)/, "summary should count both docs");
+
+    // Filling both must flip the whole directory green in one run.
+    for (const f of fs.readdirSync(dir)) {
+      if (!f.endsWith(".md") || f.endsWith(".prompt.md") || f === "notes.md") continue;
+      const src = fs.readFileSync(path.join(dir, f), "utf8");
+      fs.writeFileSync(path.join(dir, f), src.replace(/_[^_\n]+_/g, "filled"), "utf8");
+    }
+    assert.strictEqual(spawnSync("bash", [checker, dir]).status, 0, "filled directory still failed");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+check("check reports findings as json an agent can act on", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const checker = path.join(scripts, "check-path.sh");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-json-"));
+  try {
+    // Quotes and backslashes in the subject are the obvious way to emit broken JSON.
+    const subject = 'Use "strict" \\ mode';
+    assert.strictEqual(spawnSync("bash", [path.join(scripts, "doc.sh"), "adr", subject, "-o", dir]).status, 0);
+
+    const scan = spawnSync("bash", [checker, dir, "--json"]);
+    const report = JSON.parse(scan.stdout.toString());
+    assert.strictEqual(scan.status, 1, "unfilled scaffold should fail");
+    assert.strictEqual(report.ok, false);
+    assert.strictEqual(report.checked, 1);
+    assert.strictEqual(report.files[0].kind, "adr");
+    assert.strictEqual(report.files[0].label, `adr · ${subject}`, "subject did not survive escaping");
+    assert.ok(report.errors > 0, "placeholders should be reported as errors");
+    for (const f of report.files[0].findings) {
+      assert.ok(["error", "warning", "fatal"].includes(f.severity), `bad severity ${f.severity}`);
+      assert.ok(f.type && f.detail, "every finding needs a type and a detail");
+    }
+
+    // An uncheckable doc must be reported, not abort the run.
+    fs.writeFileSync(path.join(dir, "broken.md"), "<!-- pncsy:learn -->\n# Broken\n", "utf8");
+    const second = JSON.parse(spawnSync("bash", [checker, dir, "--json"]).stdout.toString());
+    assert.strictEqual(second.checked, 2, "a bad doc stopped the scan early");
+    assert.strictEqual(second.uncheckable, 1);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 check("check-path honors the custom config that generated a path", () => {
   const scripts = path.dirname(fileURLToPath(import.meta.url));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-custom-check-"));

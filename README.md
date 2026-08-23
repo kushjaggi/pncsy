@@ -17,6 +17,7 @@
   <a href="#how-it-works">How it works</a> ·
   <a href="#learning-paths">Learning paths</a> ·
   <a href="#project-docs">Project docs</a> ·
+  <a href="#how-this-compares">How this compares</a> ·
   <a href="#ship-docs">Ship docs</a> ·
   <a href="#ai-editors">AI editors</a> ·
   <a href="examples/demo/omnivoice-indian-speech-finetuning-path.md">Live example</a>
@@ -151,10 +152,19 @@ topic-path.md  (Topic · intermediate · standard)
   ✗ placeholder left  _why it matters_ (line 61)
   ! unresolved        (verify) × 3
 
-FAIL  2 problem(s), 1 warning(s)
+FAIL  2 problem(s), 1 warning(s) — 1 file(s)
 ```
 
 Exit `0` clean, `1` contract broken, `2` uncheckable — so it drops straight into CI or a pre-commit hook. `--strict` fails on warnings too.
+
+**One command gates the repo.** With no argument, `check` finds every doc carrying a pncsy marker and verifies all of them. Files that merely *mention* the marker in prose or in a code fence are skipped, so it never flags your own README:
+
+```bash
+pncsy check                 # every pncsy doc, one exit code
+pncsy check --json          # same, machine-readable
+```
+
+`--json` is for agents: `{ "ok", "checked", "errors", "files": [ { "file", "kind", "findings": [ { "severity", "type", "detail" } ] } ] }`. Point your agent at it and have it fix each `detail` until `ok` is true. One uncheckable doc is reported, not fatal — the scan still covers the rest.
 
 ---
 
@@ -222,6 +232,35 @@ Custom paths record the config that created them. Keep that file available:
 Tokens: `{{topic}}` `{{levelTitle}}` `{{concepts}}` `{{ladder}}` — see [learn.default.mjs](scripts/learn.default.mjs).
 
 </details>
+
+---
+
+## How this compares
+
+There are good tools in this space, and most of them solve a *different* problem than `pncsy`. The split is worth understanding before you pick one.
+
+| Tool | What it verifies | Where it stops |
+|------|------------------|----------------|
+| **`pncsy`** | **Doc vs. its own contract** — rebuilds the scaffold from the embedded marker and diffs | Cannot tell you the content is *true*, only that the shape survived |
+| [fiberplane/drift](https://github.com/fiberplane/drift) | Doc vs. code — AST fingerprints per file or symbol, via `drift.lock` | Doesn't care what's *inside* the doc |
+| [EvertDeveloper/archdrift](https://github.com/EvertDeveloper/archdrift) | Doc vs. repo structure — generates `ARCHITECTURE.md`, fails CI on structural drift | One document, structural only |
+| [Arthur920/Staleguard](https://github.com/Arthur920/Staleguard) | Doc vs. reality — proves paths, commands, env vars, and import rules in prose are real | Doesn't know a doc was supposed to have sections |
+| [Vercel `adr-skill`](https://github.com/vercel/ai), [tanRdev/auto-adr](https://github.com/tanRdev/auto-adr), [everything-claude-code](https://github.com/affaan-m/everything-claude-code) | Nothing — they generate an ADR | Never check what came back |
+
+**The distinction that matters.** The drift tools ask *"has the code moved out from under this doc?"* `pncsy check` asks *"is this still the document we asked for?"* Those catch different failures. An agent handed an ADR scaffold will often produce something that reads beautifully because it quietly dropped **Alternatives rejected** — the one section that made the ADR worth writing. No code changed, so no drift tool fires. The generator skills never look at the result at all. `pncsy` rebuilds the original scaffold from the marker in your file and diffs, so a deleted section is a hard failure.
+
+Beyond that: `pncsy` is a plain CLI, so it works in Cursor, Claude Code, Windsurf, Cline, or a CI job rather than one agent's skill folder; it covers **six** record types under one contract instead of ADRs alone; the whole scaffold-and-check tier is **bash with no Node**; and it ships anything to PDF/HTML, which none of the others do.
+
+### When to use the others instead
+
+Be honest about the boundaries — `pncsy` is deliberately narrow.
+
+- **You want to know when code changed under a doc.** Use **fiberplane/drift**. It is genuinely better at this: tree-sitter AST fingerprints, symbol-level anchors, reformat-proof. `pncsy` only stamps a commit on `arch` and `flow` docs and warns that HEAD moved — coarse, and a warning rather than an error.
+- **You want to prove your docs' claims are real.** Use **Staleguard**. It checks that every path, command, flag, and env var a doc mentions actually exists. `pncsy` does not check this at all.
+- **You want a generated map of your repo.** Use **archdrift**. It reads your filesystem and writes the map for you. `pncsy` never reads your code — it produces an empty shape that a human or agent fills.
+- **You're all-in on Claude Code and only need ADRs.** **Vercel's `adr-skill`** has a richer single-document workflow, with Socratic intent capture and implementation plans written for the next agent.
+
+These compose fine. Running `pncsy check` for structure and `staleguard check` or `drift check` for code correspondence covers both halves, and nothing about them conflicts.
 
 ---
 
@@ -306,7 +345,8 @@ Per-editor setup: **[skill/INSTALL.md](skill/INSTALL.md)**
 
 ```bash
 pncsy learn "<topic>" [options]      # scaffold — no Node
-pncsy check <file.md> [--strict]     # verify a filled doc — no Node
+pncsy check [file|dir] [--strict]    # verify filled docs; no arg scans the repo
+pncsy check --json                   # machine-readable findings for agents
 pncsy adr "<decision>"               # decision record — no Node
 pncsy arch ["<system>"]              # system map — no Node
 pncsy flow "<path>"                  # execution trace — no Node
