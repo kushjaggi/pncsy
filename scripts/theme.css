@@ -1,10 +1,10 @@
-/* pncsy — print / PDF theme (keep intact) */
+/* pncsy — print / PDF theme */
 
 :root {
   --ink: #1a2332;
   --muted: #5a6577;
   --line: #d8dee8;
-  --paper: #fbfaf7;
+  --paper: #faf9f7;
   --card: #ffffff;
   --accent: #0f6e6a;
   --accent-soft: #e6f3f2;
@@ -17,7 +17,7 @@
 }
 
 html {
-  font-size: 11pt;
+  font-size: 10pt;
 }
 
 body {
@@ -25,90 +25,128 @@ body {
   color: var(--ink);
   background: var(--paper);
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  line-height: 1.55;
+  line-height: 1.46;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 
 .page {
-  max-width: 780px;
+  max-width: 800px;
   margin: 0 auto;
-  padding: 0 4px 24px;
+  padding: 0 2px 16px;
 }
 
+/* —— Cover —— */
 .cover {
   page-break-after: always;
-  min-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 48px 28px 36px;
-  border-radius: 4px;
-  background: linear-gradient(165deg, #0b3d3b 0%, #0f6e6a 42%, #1a8f88 100%);
-  color: #f7fffe;
-  position: relative;
-  overflow: hidden;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0;
+  padding: 16mm 14mm 12mm;
+  background: var(--paper);
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
 }
 
-.cover::after {
-  content: "";
-  position: absolute;
-  inset: auto -20% -30% 20%;
-  height: 70%;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.14), transparent 55%);
-  pointer-events: none;
+.cover-top {
+  margin-bottom: 0;
+}
+
+.cover-rule {
+  width: 2.75rem;
+  height: 3px;
+  background: var(--accent);
+  margin-bottom: 1rem;
 }
 
 .cover-kicker {
   font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
   text-transform: uppercase;
-  letter-spacing: 0.22em;
-  font-size: 0.72rem;
-  opacity: 0.85;
-  margin-bottom: 18px;
+  letter-spacing: 0.26em;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0;
+}
+
+.cover-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1.75rem 0 1.25rem;
+  max-width: 34em;
 }
 
 .cover h1 {
-  font-size: 2.6rem;
-  line-height: 1.1;
-  margin: 0 0 14px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 2.05rem;
+  line-height: 1.12;
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   border: none;
-  color: #fff;
+  color: var(--ink);
   padding: 0;
 }
 
 .cover .subtitle {
-  font-size: 1.05rem;
-  max-width: 28em;
-  opacity: 0.92;
-  margin: 0 0 28px;
-  font-weight: 400;
-}
-
-.cover-meta {
   font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  opacity: 0.8;
-  margin-top: auto;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  max-width: 32em;
+  color: var(--muted);
+  margin: 0 0 1rem;
+  font-weight: 400;
 }
 
 .cover-path {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 0;
+  margin-top: 0.2rem;
 }
 
 .cover-chip {
   font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 0.68rem;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 999px;
-  padding: 5px 10px;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: none;
+}
+
+.cover-chip + .cover-chip::before {
+  content: "·";
+  margin: 0 0.45em;
+  color: var(--line);
+}
+
+.cover-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.75rem;
+  font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 0.66rem;
+  color: var(--muted);
   letter-spacing: 0.02em;
+}
+
+.cover-meta {
+  margin: 0;
+}
+
+.cover-brand {
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 h1,
@@ -116,22 +154,22 @@ h2,
 h3,
 h4 {
   font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
-  line-height: 1.25;
+  line-height: 1.22;
   color: var(--ink);
   page-break-after: avoid;
 }
 
 h1 {
-  font-size: 1.85rem;
-  margin: 0 0 0.6em;
-  padding-bottom: 0.35em;
+  font-size: 1.7rem;
+  margin: 0 0 0.5em;
+  padding-bottom: 0.3em;
   border-bottom: 3px solid var(--accent);
 }
 
 h2 {
-  font-size: 1.35rem;
-  margin: 1.6em 0 0.55em;
-  padding-top: 0.35em;
+  font-size: 1.22rem;
+  margin: 1.25em 0 0.45em;
+  padding-top: 0.25em;
   border-top: 1px solid var(--line);
 }
 
@@ -141,26 +179,41 @@ h2 {
 }
 
 h3 {
-  font-size: 1.08rem;
-  margin: 1.25em 0 0.4em;
+  font-size: 1.02rem;
+  margin: 1em 0 0.35em;
   color: #243247;
 }
 
 h4 {
-  font-size: 0.95rem;
-  margin: 1em 0 0.35em;
+  font-size: 0.9rem;
+  margin: 0.85em 0 0.3em;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 p {
-  margin: 0.55em 0;
+  margin: 0.45em 0;
 }
 
 a {
   color: var(--accent);
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a.repo-link,
+a.paper-link {
+  font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 0.92em;
+  word-break: break-word;
+}
+
+a.repo-link code {
+  background: transparent;
+  color: inherit;
+  padding: 0 0.1em;
+  text-decoration: underline;
 }
 
 strong {
@@ -170,17 +223,17 @@ strong {
 hr {
   border: none;
   border-top: 1px solid var(--line);
-  margin: 1.6em 0;
+  margin: 1.2em 0;
 }
 
 ul,
 ol {
-  margin: 0.45em 0 0.8em;
-  padding-left: 1.35em;
+  margin: 0.35em 0 0.65em;
+  padding-left: 1.25em;
 }
 
 li {
-  margin: 0.25em 0;
+  margin: 0.18em 0;
 }
 
 li::marker {
@@ -188,41 +241,44 @@ li::marker {
 }
 
 blockquote {
-  margin: 1em 0;
-  padding: 0.75em 1em;
+  margin: 0.75em 0;
+  padding: 0.6em 0.85em;
   background: var(--accent-soft);
   border-left: 4px solid var(--accent);
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 6px 6px 0;
   color: #1f3d3b;
 }
 
 blockquote p {
-  margin: 0.25em 0;
+  margin: 0.2em 0;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  margin: 0.9em 0 1.2em;
+  margin: 0.65em 0 0.9em;
   font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
-  page-break-inside: avoid;
+}
+
+thead {
+  display: table-header-group;
 }
 
 thead th {
   background: var(--table-head);
   text-align: left;
   font-weight: 600;
-  padding: 0.55em 0.7em;
+  padding: 0.42em 0.55em;
   border-bottom: 1px solid var(--line);
 }
 
 td {
-  padding: 0.5em 0.7em;
+  padding: 0.38em 0.55em;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
@@ -237,84 +293,205 @@ tbody tr:nth-child(even) td {
 
 code {
   font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.84em;
+  font-size: 0.82em;
   background: var(--code-bg);
-  padding: 0.12em 0.35em;
-  border-radius: 4px;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
   color: #1e2a3a;
 }
 
 pre {
   background: #1c2430;
   color: #e8eef7;
-  padding: 0.95em 1.05em;
-  border-radius: 10px;
+  padding: 0.75em 0.9em;
+  border-radius: 8px;
   overflow-x: auto;
-  margin: 0.9em 0 1.15em;
-  page-break-inside: avoid;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  margin: 0.65em 0 0.85em;
 }
 
 pre code {
   background: transparent;
   color: inherit;
   padding: 0;
-  font-size: 0.78rem;
-  line-height: 1.45;
+  font-size: 0.74rem;
+  line-height: 1.42;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.mermaid {
+/* —— Figures: heading + diagram stay together —— */
+.figure-group {
+  margin: 0.65em 0 0.85em;
+}
+
+.figure-section {
+  margin: 0.35em 0 0;
+}
+
+.figure-section > h2,
+.figure-section > h3,
+.figure-section > h4 {
+  margin-bottom: 0.25em;
+}
+
+.figure-section > p {
+  margin-top: 0;
+  margin-bottom: 0.35em;
+}
+
+.mermaid,
+.graphviz-svg {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 1em;
-  margin: 1em 0 1.2em;
-  page-break-inside: avoid;
+  border-radius: 8px;
+  padding: 0.55em 0.65em;
+  margin: 0;
   text-align: center;
+}
+
+.diagram-block {
+  margin: 0.35em 0 0;
+  overflow: hidden;
+}
+
+.mermaid svg,
+.graphviz-svg svg {
+  max-width: 100%;
+  height: auto !important;
 }
 
 .diagram-label {
   font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 0.7rem;
+  font-size: 0.64rem;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   color: var(--muted);
-  margin: 0.4em 0 0.2em;
+  margin: 0 0 0.15em;
 }
 
+/* —— TOC: compact, 3-column, one page —— */
 .toc-box {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 1em 1.2em 1.1em;
-  margin: 1em 0 1.4em;
+  border-radius: 8px;
+  padding: 0.55em 0.7em 0.65em;
+  margin: 0.5em 0 0.75em;
 }
 
 .toc-box h2 {
   margin-top: 0;
   border: none;
   padding: 0;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+}
+
+.toc-lead {
+  font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin: 0.1em 0 0.45em;
+}
+
+.toc-grid {
+  columns: 3;
+  column-gap: 0.85em;
+}
+
+.toc-part {
+  break-inside: avoid;
+  margin-bottom: 0.4em;
+  padding: 0 0 0.25em;
+}
+
+.toc-part-title {
+  font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.2em;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.toc-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35em;
+  height: 1.35em;
+  padding: 0 0.3em;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
+.toc-part-list {
+  margin: 0;
+  padding-left: 0.95em;
+  font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 0.62rem;
+  line-height: 1.28;
+}
+
+.toc-part-list li {
+  margin: 0.06em 0;
+}
+
+.toc-part-list a {
+  text-decoration: none;
+  color: var(--ink);
+  border-bottom: 1px dotted var(--line);
+}
+
+.toc-muted {
+  color: var(--muted);
+  font-size: 0.58rem;
+}
+
+.toc-appendix-note {
+  list-style: none;
+  margin-left: -0.95em;
+  font-style: italic;
+}
+
+/* PART banner + first section stay together */
+.part-lead {
+  margin: 0.85em 0 0.35em;
+}
+
+.part-lead > h2:first-child {
+  margin-top: 0.5em;
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-top: none;
+  padding-top: 0;
+}
+
+.part-lead > h2:last-child {
+  border-top: none;
+  margin-top: 0.15em;
 }
 
 input[type="checkbox"] {
-  margin-right: 0.4em;
+  margin-right: 0.35em;
 }
 
 .footer-note {
-  margin-top: 2.5em;
-  padding-top: 1em;
+  margin-top: 1.75em;
+  padding-top: 0.75em;
   border-top: 1px solid var(--line);
   font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--muted);
-}
-
-@page {
-  size: A4;
-  margin: 16mm 14mm 18mm;
 }
 
 @media print {
@@ -323,19 +500,59 @@ input[type="checkbox"] {
   }
 
   .cover {
-    min-height: auto;
+    min-height: 100vh;
     height: 100vh;
-    border-radius: 0;
+    border-bottom: none;
   }
 
   a {
-    color: var(--ink);
+    color: var(--accent);
+    text-decoration: underline;
+  }
+
+  a.repo-link,
+  a.paper-link,
+  a.repo-link code {
+    color: #0a5c58;
+  }
+
+  .figure-group {
+    /* allow natural breaks — avoid blank pages from oversized groups */
+  }
+
+  .figure-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .part-lead {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   pre,
-  table,
-  blockquote,
-  .mermaid {
+  blockquote {
+    break-inside: avoid;
     page-break-inside: avoid;
   }
+
+  table:not(.table-breakable) {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  table.table-breakable {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .diagram-block.allow-break {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 12mm 10mm 14mm;
 }

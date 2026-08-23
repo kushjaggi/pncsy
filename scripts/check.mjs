@@ -21,7 +21,7 @@ import {
   writeUnlessEdited,
 } from "./learn.mjs";
 import { DEFAULT_CONFIG } from "./learn.default.mjs";
-import { slugify, parseFrontmatter, polishMarkdown, injectAutoToc } from "./pncsy.mjs";
+import { slugify, parseFrontmatter, polishMarkdown, injectAutoToc, linkifyRepoPaths, linkifyCodeInHtml, tagExternalLinks, wrapMermaid, wrapFigureSections, wrapPartHeadings, buildTocGroups, compactTocGroups, dotPathToSlash } from "./pncsy.mjs";
 
 let passed = 0;
 function check(name, fn) {
@@ -188,6 +188,123 @@ check("slugify matches heading anchors", () => {
   assert.strictEqual(slugify("Level 1 — Basic!"), "level-1-basic");
 });
 
+check("linkify repo paths only when repo_base is set", () => {
+  const md = "See `src/foo.py` and `vendor/b.py`";
+  assert.strictEqual(linkifyRepoPaths(md, {}), md);
+  const linked = linkifyRepoPaths(md, {
+    repo_base: "https://github.com/o/r/blob/main",
+  });
+  assert.ok(linked.includes("[`src/foo.py`](https://github.com/o/r/blob/main/src/foo.py)"));
+  assert.ok(!linked.includes("blob/main/vendor/b.py"), "outside default prefixes should stay plain");
+});
+
+check("linkify respects repo_paths and directory tree urls", () => {
+  const md = "`src/a.py` `docs/guide.md` `examples/`";
+  const fm = {
+    repo_base: "https://github.com/o/r/blob/main",
+    repo_tree: "https://github.com/o/r/tree/main",
+    repo_paths: "src, examples",
+  };
+  const out = linkifyRepoPaths(md, fm);
+  assert.ok(out.includes("blob/main/src/a.py"));
+  assert.ok(!out.includes("blob/main/docs/guide.md"));
+  assert.ok(out.includes("tree/main/examples/"));
+});
+
+check("linkify skips fenced code blocks", () => {
+  const md = "Use `src/a.py`\n\n```py\n# `src/secret.py`\n```\n";
+  const out = linkifyRepoPaths(md, { repo_base: "https://github.com/o/r/blob/main" });
+  assert.ok(out.includes("[`src/a.py`]"));
+  assert.ok(out.includes("`src/secret.py`") && !out.includes("blob/main/src/secret.py"));
+});
+
+check("tagExternalLinks adds repo and paper classes", () => {
+  const html =
+    '<a href="https://github.com/x/y">x</a> <a href="https://arxiv.org/abs/1234.5678">p</a>';
+  const out = tagExternalLinks(html);
+  assert.ok(out.includes('class="repo-link"'));
+  assert.ok(out.includes('class="paper-link"'));
+});
+
+check("wrapMermaid uses diagram-block wrapper", () => {
+  const html = '<pre><code class="language-mermaid">flowchart TD\nA-->B</code></pre>';
+  const out = wrapMermaid(html);
+  assert.ok(out.includes('class="diagram-block"'));
+  assert.ok(out.includes('class="mermaid"'));
+  assert.ok(out.includes("flowchart LR"), "simple chains should flip to LR");
+});
+
+check("dot paths become slash repo links", () => {
+  assert.strictEqual(dotPathToSlash("omnivoice.utils.audio"), "omnivoice/utils/audio.py");
+  assert.strictEqual(
+    dotPathToSlash("omnivoice.models.omnivoice.py"),
+    "omnivoice/models/omnivoice.py"
+  );
+  const html = "<p>See <code>omnivoice.utils.audio</code> for details.</p>";
+  const out = linkifyCodeInHtml(html, {
+    repo_base: "https://github.com/o/r/blob/main",
+    repo_paths: "omnivoice",
+  });
+  assert.ok(out.includes('class="repo-link"'));
+  assert.ok(out.includes("blob/main/omnivoice/utils/audio.py"));
+});
+
+check("figure sections wrap heading and diagram", () => {
+  const html =
+    '<h3 id="x">Pipeline</h3><div class="diagram-block"><div class="mermaid">flowchart LR\nA-->B</div></div>';
+  const out = wrapFigureSections(html);
+  assert.ok(out.includes('class="figure-section"'));
+  assert.ok(out.includes('diagram-label">Pipeline'));
+  const withIntro =
+    '<h3 id="y">Intro</h3><p>Lead-in text.</p><div class="diagram-block"><div class="mermaid">flowchart LR\nA-->B</div></div>';
+  const ordered = wrapFigureSections(withIntro);
+  assert.ok(ordered.indexOf("Lead-in text") < ordered.indexOf("figure-section"));
+});
+
+check("toc groups long lists into phased grid", () => {
+  const items =
+    "<li><a href=\"#a\">0. Orientation</a></li>" +
+    "<li><a href=\"#b\">PART A — Foundations</a></li>" +
+    "<li><a href=\"#c\">7. Codebooks</a></li>" +
+    "<li><a href=\"#d\">35. Reference</a></li>" +
+    "<li><a href=\"#e\">36. More</a></li>";
+  const groups = buildTocGroups(items);
+  assert.ok(groups.some((g) => g.badge === "A" && g.items.length === 1), "PART title is the group header");
+  const ref = groups.find((g) => g.badge === "REF");
+  assert.ok(ref && ref.items.length <= 2, "appendix collapses to a summary");
+});
+
+// The collapsed summary used to hardcode an anchor from an unrelated project,
+// so every long TOC shipped a link to a section that did not exist.
+check("collapsed toc links only to sections that exist", () => {
+  const items = Array.from(
+    { length: 9 },
+    (_, i) => `<li><a href="#sec-${i}">Section ${i}</a></li>`
+  );
+  const [group] = compactTocGroups([{ badge: "REF", title: "Appendix", items }]);
+  assert.strictEqual(group.items.length, 2, "long REF group should collapse");
+  for (const href of group.items.join("").match(/href="[^"]+"/g) || []) {
+    assert.ok(items.join("").includes(href), `collapsed toc invented a target: ${href}`);
+  }
+  assert.ok(group.items[1].includes("8 more sections"), "should say how many are hidden");
+});
+
+check("part headings wrap with next section", () => {
+  const html =
+    '<h2 id="part-a-x">PART A — X</h2><h2 id="sec-1">1. First</h2><p>text</p>';
+  const out = wrapPartHeadings(html);
+  assert.ok(out.includes('class="part-lead"'));
+});
+
+check("print layout and cover structure live in pncsy.mjs", () => {
+  const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "pncsy.mjs"), "utf8");
+  assert.ok(src.includes("preparePrintLayout"), "missing preparePrintLayout");
+  assert.ok(src.includes("cover-brand"), "missing editorial cover brand");
+  assert.ok(src.includes("</article>\n  ${scriptsBlock"), "scripts should load after body content");
+  assert.ok(src.includes("figure-section"), "missing figure-section wrapper");
+  assert.ok(src.includes("toc-map"), "missing grouped toc");
+});
+
 // learn ships twice — bash for the no-Node install, Node for config/--ship.
 // Same flags must give byte-identical files or curl users get a different tool.
 check("bash and node learn agree byte for byte", () => {
@@ -255,6 +372,90 @@ check("check-path catches a broken contract", () => {
     fs.writeFileSync(path.join(dir, "tagged.md"), filled.replace("## Next", "(verify)\n\n## Next"), "utf8");
     assert.strictEqual(run("tagged.md").status, 0, "verify tags are a warning, not a failure");
     assert.strictEqual(run("tagged.md", "--strict").status, 1, "--strict ignored the warning");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// Every doc kind rides the same scaffold/fill/check contract as learn. If a new
+// kind lands without placeholders, or check cannot rebuild it, this catches it.
+check("every doc kind scaffolds and is checkable", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-doc-"));
+  const kinds = {
+    adr: "Use Postgres over DynamoDB",
+    arch: "billing service",
+    flow: "login request",
+    constraints: "",
+    bug: "marker deleted on fill",
+    handover: "",
+  };
+  try {
+    for (const [kind, subject] of Object.entries(kinds)) {
+      const args = subject ? [kind, subject] : [kind];
+      const built = spawnSync("bash", [path.join(scripts, "doc.sh"), ...args, "-o", dir]);
+      assert.strictEqual(built.status, 0, `${kind} failed: ${built.stderr}`);
+
+      const base = subject ? `${slugify(subject)}-${kind}` : kind;
+      const file = path.join(dir, `${base}.md`);
+      assert.ok(fs.existsSync(file), `${kind} wrote no doc`);
+      assert.ok(fs.existsSync(path.join(dir, `${base}.prompt.md`)), `${kind} wrote no prompt`);
+
+      const raw = fs.readFileSync(file, "utf8");
+      assert.match(raw, new RegExp(`pncsy:${kind}`), `${kind} scaffold has no marker`);
+      assert.match(raw, /_[^_\n]+_/, `${kind} scaffold has nothing to fill`);
+
+      const run = (f) => spawnSync("bash", [path.join(scripts, "check-path.sh"), f]).status;
+      assert.strictEqual(run(file), 1, `${kind} passed while still unfilled`);
+
+      const filled = path.join(dir, `ok-${base}.md`);
+      fs.writeFileSync(filled, raw.replace(/_[^_\n]+_/g, "filled"), "utf8");
+      assert.strictEqual(run(filled), 0, `${kind} rejected a complete fill`);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// A doc about live code is only true at the commit it described. Docs that
+// record history (adr, bug, handover) must not nag when HEAD moves.
+check("only code-tracking docs go stale", () => {
+  const scripts = path.dirname(fileURLToPath(import.meta.url));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pncsy-rot-"));
+  const git = (...a) =>
+    spawnSync("git", ["-C", dir, "-c", "user.email=t@t", "-c", "user.name=t", ...a]);
+  try {
+    git("init", "-q");
+    fs.writeFileSync(path.join(dir, "a.txt"), "one", "utf8");
+    git("add", "-A");
+    git("commit", "-qm", "one");
+    const first = spawnSync("git", ["-C", dir, "rev-parse", "--short", "HEAD"]).stdout.toString().trim();
+    fs.writeFileSync(path.join(dir, "a.txt"), "two", "utf8");
+    git("add", "-A");
+    git("commit", "-qm", "two");
+
+    for (const [kind, shouldWarn] of [["arch", true], ["adr", false]]) {
+      assert.strictEqual(
+        spawnSync("bash", [path.join(scripts, "doc.sh"), kind, "-o", dir]).status, 0);
+      const file = path.join(dir, `${kind}.md`);
+      const filled = fs
+        .readFileSync(file, "utf8")
+        .replace(/_[^_\n]+_/g, "filled")
+        .replace(/commit="[^"]*"/, `commit="${first}"`);
+      fs.writeFileSync(file, filled, "utf8");
+
+      const out = spawnSync("bash", [path.join(scripts, "check-path.sh"), file]);
+      assert.strictEqual(out.status, 0, `${kind} should still pass: ${out.stdout}`);
+      // Anchor on the report line, not the word — the temp path contains it too.
+      assert.strictEqual(
+        /^\s*! stale\b/m.test(out.stdout.toString()),
+        shouldWarn,
+        `${kind} staleness warning should be ${shouldWarn}`
+      );
+      // Rotted content is a warning by default, a failure when asked.
+      const strict = spawnSync("bash", [path.join(scripts, "check-path.sh"), file, "--strict"]);
+      assert.strictEqual(strict.status, shouldWarn ? 1 : 0, `${kind} --strict disagreed`);
+    }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

@@ -16,7 +16,12 @@ curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/instal
 | Intent | Command |
 |--------|---------|
 | Learning path / roadmap / syllabus / "where do I start" | `pncsy learn "<topic>" --level intermediate --depth standard` |
-| Confirm a filled path is complete | `pncsy check "<slug>-path.md"` |
+| Confirm a filled path is complete | `pncsy check "<file.md>"` |
+| Record why a choice was made | `pncsy adr "<decision>"` |
+| Map a system / trace a code path | `pncsy arch "<system>"` · `pncsy flow "<path>"` |
+| Write down what agents must not touch | `pncsy constraints` |
+| Log a bug start to finish | `pncsy bug "<symptom>"` |
+| Hand off at end of session | `pncsy handover` |
 | Ship md as PDF | `pncsy node "<file.md>"` |
 | PDF + HTML | `pncsy node "<file.md>" --pack` |
 | Custom structure | `pncsy node learn --init-config` → edit `pncsy.learn.json` |
@@ -30,6 +35,14 @@ curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/instal
 
 Keep the `<!-- pncsy:learn … -->` line when filling. Deleting it makes step 3 impossible.
 
+## Project docs
+
+`adr` · `arch` · `flow` · `constraints` · `bug` · `handover` — same loop: scaffold → fill from `.prompt.md` → `pncsy check`. Keep the `<!-- pncsy:<kind> … -->` line.
+
+- Never invent a path, function, or line number you have not read. Tag unconfirmed claims `(verify)`.
+- Never delete a heading you had nothing for — say what is missing and why.
+- `arch` and `flow` stamp the commit they describe; `check` warns once HEAD moves past it. Regenerate rather than patching a stale trace.
+
 Re-running `learn` keeps existing files. `--force` only when user wants reset.
 
 ## Rules
@@ -37,6 +50,7 @@ Re-running `learn` keeps existing files. `--force` only when user wants reset.
 - Never add `marked` / `puppeteer` / `mermaid` to the **user's project** — they ship with `pncsy`
 - Report output paths briefly after runs
 - User edits to `.prompt.md` outrank defaults — re-fill from edited prompt
+- For repo-aware docs: set `repo_base` in frontmatter so `` `src/path.py` `` ships as clickable PDF links
 
 ## Install skill in your editor
 

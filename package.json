@@ -9,6 +9,7 @@
   "files": [
     "bin",
     "scripts",
+    "!scripts/capture-screenshots.mjs",
     "skill",
     "AGENTS.md",
     "README.md",
@@ -45,6 +46,7 @@
     "node": ">=18"
   },
   "dependencies": {
+    "@viz-js/viz": "^3.29.0",
     "marked": "^15.0.0",
     "mermaid": "^11.0.0",
     "puppeteer-core": "^24.0.0"

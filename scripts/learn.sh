@@ -73,16 +73,6 @@ wants_papers() {
   [[ "$idx" -ge 2 ]]
 }
 
-write_file() {
-  local file="$1" force="$2"
-  if [[ "$force" != "1" && -f "$file" ]]; then
-    echo "kept"
-    return 1
-  fi
-  cat > "$file"
-  echo "wrote"
-}
-
 TOPIC="" LEVEL="intermediate" DEPTH="standard" OUT="" FORCE=0
 
 while [[ $# -gt 0 ]]; do

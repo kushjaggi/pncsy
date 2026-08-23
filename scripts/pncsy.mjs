@@ -49,6 +49,9 @@ Cover / meta:
   --no-cover
   --no-toc              Skip auto table of contents
   --no-polish           Keep raw Markdown (skip AI-dump cleanup)
+  --no-repo-links       Skip repo path / GitHub link enhancement
+  --repo-base <url>     GitHub blob base (overrides frontmatter repo_base)
+  --repo-tree <url>     GitHub tree base for directory paths ending in /
 
 Output:
   -o, --output <path>   Output file or directory
@@ -75,6 +78,9 @@ function defaultOpts() {
     cover: true,
     toc: true,
     polish: true,
+    repoLinks: true,
+    repoBase: null,
+    repoTree: null,
     keepHtml: true,
     open: false,
     chrome: null,
@@ -126,7 +132,10 @@ function parseArgs(argv) {
     else if (a === "--no-cover") opts.cover = false;
     else if (a === "--no-toc") opts.toc = false;
     else if (a === "--no-polish") opts.polish = false;
-    else if (a === "--no-html" || a === "--no-html-keep") opts.keepHtml = false;
+    else if (a === "--no-repo-links") opts.repoLinks = false;
+    else if (a === "--repo-base" && args[i + 1]) opts.repoBase = args[++i];
+    else if (a === "--repo-tree" && args[i + 1]) opts.repoTree = args[++i];
+    else if (a === "--no-html-keep") opts.keepHtml = false;
     else if (a === "--open") opts.open = true;
     else if (a === "--chrome" && args[i + 1]) opts.chrome = args[++i];
     else if (a === "--json") opts.json = true;
@@ -164,10 +173,8 @@ function ensureDeps() {
     });
     if (r.status === 0 && fs.existsSync(marker)) return;
   }
-  if (r2.status !== 0 || !fs.existsSync(marker)) {
-    log("[pncsy] deps missing. Run: pncsy setup --node");
-    process.exit(1);
-  }
+  log("[pncsy] deps missing. Run: pncsy setup --node");
+  process.exit(1);
 }
 
 function findChrome(explicit) {
@@ -227,6 +234,267 @@ function parseFrontmatter(raw) {
   return { meta, body };
 }
 
+const DEFAULT_REPO_PATH_PREFIXES = ["src", "lib", "docs", "examples", "scripts", "pkg"];
+
+function parseRepoPathPrefixes(fm) {
+  if (fm.repo_paths === "*") return null;
+  if (fm.repo_paths == null || fm.repo_paths === "") {
+    return DEFAULT_REPO_PATH_PREFIXES;
+  }
+  const raw = Array.isArray(fm.repo_paths)
+    ? fm.repo_paths
+    : String(fm.repo_paths).split(",");
+  return raw.map((s) => s.trim()).filter(Boolean);
+}
+
+/** `omnivoice.utils.audio` → `omnivoice/utils/audio.py` when it looks like a module path. */
+function dotPathToSlash(path) {
+  if (!path.includes(".") || path.includes(" ") || path.includes("/")) return null;
+  if (/^[\d().,\s×\-+]+$/.test(path)) return null;
+  if (/^[A-Z][a-zA-Z0-9]*$/.test(path)) return null; // class names like OmniVoiceConfig
+  const parts = path.split(".");
+  const root = parts[0];
+  if (!/^[a-z][a-z0-9_-]*$/i.test(root)) return null;
+  const exts = new Set(["py", "js", "ts", "md", "json", "yaml", "yml", "sh", "txt", "toml"]);
+  if (parts.length >= 2 && exts.has(parts[parts.length - 1].toLowerCase())) {
+    const ext = parts.pop();
+    parts[parts.length - 1] = `${parts[parts.length - 1]}.${ext}`;
+  }
+  let slash = parts.join("/");
+  if (!/\.\w{1,6}$/.test(slash) && parts.length >= 2) slash += ".py";
+  return slash;
+}
+
+function repoPathCandidates(path) {
+  const out = [path];
+  const dotted = dotPathToSlash(path);
+  if (dotted && dotted !== path) out.push(dotted);
+  return out;
+}
+
+function pathMatchesPrefixes(p, prefixes) {
+  if (prefixes === null) return p.includes("/");
+  return prefixes.some(
+    (pref) => p === pref || p.startsWith(`${pref}/`) || (pref.endsWith("/") && p.startsWith(pref))
+  );
+}
+
+function bestRepoPath(path, prefixes) {
+  for (const p of repoPathCandidates(path)) {
+    if (pathMatchesPrefixes(p, prefixes)) return p;
+  }
+  return null;
+}
+
+function repoUrlForPath(path, blobBase, treeBase) {
+  if (path.endsWith("/")) {
+    return `${treeBase}/${path}`;
+  }
+  return `${blobBase}/${path}`;
+}
+
+/**
+ * When frontmatter sets repo_base, turn backtick repo paths into markdown links
+ * and label bare GitHub/arXiv appendix URLs. Skips fenced code blocks.
+ */
+function linkifyRepoPaths(md, fm = {}) {
+  const blobBase = fm.repo_base ? String(fm.repo_base).replace(/\/$/, "") : null;
+  if (!blobBase) return md;
+
+  const treeBase = String(
+    fm.repo_tree || blobBase.replace("/blob/", "/tree/")
+  ).replace(/\/$/, "");
+  const prefixes = parseRepoPathPrefixes(fm);
+
+  const parts = md.split(/(```[\s\S]*?```)/g);
+  return parts
+    .map((part, i) => {
+      if (i % 2 === 1) return part;
+      let out = part.replace(/`([^`\n]+)`/g, (m, path) => {
+        const linkPath = bestRepoPath(path, prefixes);
+        if (!linkPath) return m;
+        return `[\`${path}\`](${repoUrlForPath(linkPath, blobBase, treeBase)})`;
+      });
+      out = out.replace(
+        /^- ([^:\n]+): (https:\/\/github\.com\/\S+)/gm,
+        (_, label, url) =>
+          `- ${label}: [${url.replace(/^https:\/\//, "")}](${url})`
+      );
+      out = out.replace(
+        /^- ([^:\n]+): (https:\/\/arxiv\.org\/\S+)/gm,
+        (_, label, url) => {
+          const short = url.includes("/abs/")
+            ? `arXiv:${url.split("/abs/")[1]}`
+            : url.replace(/^https:\/\//, "");
+          return `- ${label}: [${short}](${url})`;
+        }
+      );
+      return out;
+    })
+    .join("");
+}
+
+/** Mark external links for PDF styling and clickability. */
+function tagExternalLinks(html) {
+  return html
+    .replace(
+      /<a href="(https:\/\/github\.com\/[^"]+)"/g,
+      '<a class="repo-link" href="$1"'
+    )
+    .replace(
+      /<a href="(https:\/\/arxiv\.org\/[^"]+)"/g,
+      '<a class="paper-link" href="$1"'
+    );
+}
+
+/** Turn leftover <code>repo/path</code> (and dot paths) into clickable repo links. */
+function linkifyCodeInHtml(html, fm = {}) {
+  const blobBase = fm.repo_base ? String(fm.repo_base).replace(/\/$/, "") : null;
+  if (!blobBase) return html;
+
+  const treeBase = String(
+    fm.repo_tree || blobBase.replace("/blob/", "/tree/")
+  ).replace(/\/$/, "");
+  const prefixes = parseRepoPathPrefixes(fm);
+
+  const chunks = html.split(/(<a\b[^>]*>[\s\S]*?<\/a>)/g);
+  return chunks
+    .map((chunk, i) => {
+      if (i % 2 === 1) return chunk;
+      return chunk.replace(/<code>([^<]+)<\/code>/g, (m, text) => {
+        const linkPath = bestRepoPath(text.trim(), prefixes);
+        if (!linkPath) return m;
+        const url = repoUrlForPath(linkPath, blobBase, treeBase);
+        return `<a class="repo-link" href="${url}"><code>${text}</code></a>`;
+      });
+    })
+    .join("");
+}
+
+/** Prefer horizontal layout for simple pipelines — fewer pages, clearer flow. */
+function optimizeMermaid(src) {
+  let s = src.trim();
+  if (!/^flowchart\s+(TD|TB)/im.test(s)) return s;
+
+  const body = s
+    .split("\n")
+    .slice(1)
+    .map((l) => l.trim())
+    .filter((l) => l && !/^%%/.test(l));
+  const hasSubgraph = /subgraph/i.test(s);
+  const hasBranch = /-->\s*\|/.test(s) || /\s--\s/.test(s);
+  const edges = (s.match(/-->/g) || []).length;
+  const nodeIds = new Set();
+  for (const m of s.matchAll(/\b([A-Za-z][\w]*)\s*(?:[\[\(\{"]|-->|---)/g)) nodeIds.add(m[1]);
+  for (const m of s.matchAll(/(?:-->|---)\s*([A-Za-z][\w]*)/g)) nodeIds.add(m[1]);
+  const nodes = nodeIds.size;
+  const simpleChain =
+    body.length > 0 &&
+    body.every((l) => /^[A-Za-z]\w*\s*(-->|---)/.test(l) || /^[A-Za-z]\w*\s*[\[\(\{"']/.test(l));
+
+  if (!hasSubgraph && !hasBranch && nodes >= 2 && nodes <= 8 && edges <= nodes && simpleChain) {
+    s = s.replace(/^flowchart\s+(TD|TB)/im, "flowchart LR");
+  }
+  return s;
+}
+
+function decodeHtmlEntities(s) {
+  return s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"');
+}
+
+/** Print layout: resize tall diagrams; figure-section CSS keeps headings with diagrams. */
+const PRINT_LAYOUT_SCRIPT = `
+    function pageContentHeightPx() {
+      return Math.floor(((297 - 26) * 96) / 25.4) - 32;
+    }
+
+    function fitDiagramsForPrint() {
+      const PAGE = pageContentHeightPx();
+      const MAX_BLOCK = Math.min(520, PAGE - 36);
+      document.querySelectorAll(".diagram-block").forEach((block) => {
+        const canvas = block.querySelector(".mermaid, .graphviz-svg");
+        const svg = canvas?.querySelector("svg") || (canvas?.tagName === "svg" ? canvas : null);
+        if (!canvas || !svg) return;
+
+        canvas.style.transform = "";
+        canvas.style.height = "";
+        block.style.minHeight = "";
+        block.style.height = "";
+
+        const labelH = block.querySelector(".diagram-label")?.offsetHeight || 0;
+        const pad = 12;
+        const avail = MAX_BLOCK - labelH - pad;
+        const h = canvas.scrollHeight || svg.getBoundingClientRect().height;
+        if (!h || h <= avail) return;
+
+        const scale = avail / h;
+        const w = canvas.scrollWidth || svg.getBoundingClientRect().width;
+        const newH = Math.round(h * scale);
+        const newW = Math.round(w * scale);
+        svg.setAttribute("height", String(newH));
+        svg.setAttribute("width", String(newW));
+        svg.style.height = newH + "px";
+        svg.style.width = newW + "px";
+        svg.style.display = "block";
+        svg.style.margin = "0 auto";
+        svg.style.maxWidth = "100%";
+        canvas.style.height = newH + "px";
+        canvas.style.overflow = "hidden";
+        block.style.height = labelH + newH + pad + "px";
+      });
+    }
+
+    function preparePrintLayout() {
+      fitDiagramsForPrint();
+      document.querySelectorAll("table").forEach((table) => {
+        const rows = table.querySelectorAll("tbody tr").length;
+        if (rows > 12) table.classList.add("table-breakable");
+      });
+    }
+
+    window.fitDiagramsForPrint = fitDiagramsForPrint;
+    window.preparePrintLayout = preparePrintLayout;
+`;
+
+const MERMAID_BOOTSTRAP = `
+    ${PRINT_LAYOUT_SCRIPT}
+    (async function () {
+      try {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: "base",
+          themeVariables: {
+            primaryColor: "#e8f4f3",
+            primaryTextColor: "#1a2332",
+            primaryBorderColor: "#0f6e6a",
+            lineColor: "#4a5568",
+            secondaryColor: "#f4f6f9",
+            tertiaryColor: "#ffffff",
+            fontSize: "13px",
+            fontFamily: "Avenir Next, Segoe UI, Helvetica, Arial, sans-serif"
+          },
+          flowchart: {
+            curve: "basis",
+            htmlLabels: true,
+            padding: 14,
+            nodeSpacing: 42,
+            rankSpacing: 48,
+            diagramPadding: 10,
+            useMaxWidth: true
+          },
+          securityLevel: "loose"
+        });
+        await mermaid.run({ querySelector: ".mermaid" });
+        preparePrintLayout();
+      } catch (e) { console.error(e); }
+      document.documentElement.setAttribute("data-mermaid-ready", "true");
+    })();
+`;
+
 /**
  * Out-of-box fix: AI dumps often start with chat fluff + sparse structure.
  * Strip assistant-y openings, collapse blank runs. Keep code fences intact.
@@ -249,7 +517,7 @@ function polishMarkdown(md) {
     if (/^```/.test(line.trim())) inFence = !inFence;
     if (!inFence && line.trim() === "") {
       blankRun++;
-      if (blankRun > 2) continue;
+      if (blankRun > 1) continue;
     } else {
       blankRun = 0;
     }
@@ -314,22 +582,182 @@ function wrapMermaid(html) {
   return html.replace(
     /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,
     (_, code) => {
-      const decoded = code
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&amp;/g, "&")
-        .replace(/&quot;/g, '"');
-      return `<div class="diagram-label">Diagram</div><div class="mermaid">${decoded}</div>`;
+      const decoded = optimizeMermaid(decodeHtmlEntities(code));
+      return `<div class="diagram-block"><div class="mermaid">${decoded}</div></div>`;
     }
   );
+}
+
+/** Graphviz DOT blocks render server-side — cleaner layouts than Mermaid for pipelines. */
+async function renderDotDiagrams(html) {
+  let viz;
+  try {
+    const mod = await import("@viz-js/viz");
+    viz = await mod.instance();
+  } catch {
+    return html;
+  }
+
+  return html.replace(
+    /<pre><code class="language-(?:dot|graphviz)">([\s\S]*?)<\/code><\/pre>/g,
+    (_, code) => {
+      const src = decodeHtmlEntities(code).trim();
+      try {
+        const svg = viz.renderString(src, { engine: "dot", format: "svg" });
+        return `<div class="diagram-block diagram-graphviz"><div class="graphviz-svg">${svg}</div></div>`;
+      } catch {
+        return `<pre><code class="language-dot">${code}</code></pre>`;
+      }
+    }
+  );
+}
+
+function buildTocGroups(itemsHtml) {
+  const items = [...itemsHtml.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => m[1]);
+  const groups = [];
+  let current = null;
+
+  const flush = () => {
+    if (current?.items.length) groups.push(current);
+    current = null;
+  };
+
+  for (const item of items) {
+    const text = item
+      .replace(/<a[^>]*>([\s\S]*?)<\/a>/, "$1")
+      .replace(/<[^>]+>/g, "")
+      .trim();
+
+    if (/^PART\s+([A-Z0-9]+)/i.test(text)) {
+      flush();
+      const badge = text.match(/PART\s+([A-Z0-9]+)/i)[1];
+      const title =
+        text.replace(/^PART\s+[A-Z0-9]+\s*[—–-]\s*/i, "").slice(0, 52) || text;
+      current = { badge, title, items: [] };
+      continue;
+    }
+
+    if (/^(\d+)\./.test(text) && Number(RegExp.$1) >= 35) {
+      if (!current || current.badge !== "REF") {
+        flush();
+        current = { badge: "REF", title: "Appendix", items: [] };
+      }
+    } else if (/^0\.\s|orientation/i.test(text) && !current) {
+      current = { badge: "0", title: "Start here", items: [] };
+    } else if (!current) {
+      current = { badge: "★", title: "Topics", items: [] };
+    }
+
+    current.items.push(`<li>${item}</li>`);
+  }
+  flush();
+  return compactTocGroups(mergeTocGroups(groups));
+}
+
+function mergeTocGroups(groups) {
+  const out = [];
+  for (const g of groups) {
+    const prev = out[out.length - 1];
+    if (prev && prev.badge === g.badge && g.badge === "0") {
+      prev.items.push(...g.items);
+      continue;
+    }
+    out.push(g);
+  }
+  return out;
+}
+
+/** Appendix alone is 90+ entries — collapse so the TOC fits one page. */
+function compactTocGroups(groups) {
+  return groups.map((g) => {
+    if (g.badge !== "REF" || g.items.length <= 5) return g;
+    const [first, second] = g.items;
+    const href = (second.match(/href="([^"]+)"/) || [])[1];
+    const more = `${g.items.length - 1} more sections in order`;
+    return {
+      ...g,
+      items: [
+        first,
+        `<li class="toc-appendix-note">${
+          href ? `<a href="${href}">continues</a> ` : ""
+        }<span class="toc-muted">(${more})</span></li>`,
+      ],
+    };
+  });
+}
+
+function peelDiagramBlock(token) {
+  const m = token.match(/^(<div class="diagram-block">[\s\S]*?<\/div>\s*<\/div>)([\s\S]*)$/);
+  if (!m) return { block: token, rest: "" };
+  return { block: m[1], rest: m[2] };
 }
 
 function wrapToc(html) {
   return html.replace(
     /<h2[^>]*>Table of contents<\/h2>\s*<ol>([\s\S]*?)<\/ol>/i,
-    (_m, items) =>
-      `<div class="toc-box"><h2>Table of contents</h2><ol>${items}</ol></div>`
+    (_m, items) => {
+      const groups = buildTocGroups(items);
+      const grid = groups
+        .map(
+          (g) => `<section class="toc-part">
+          <h3 class="toc-part-title"><span class="toc-badge">${escapeHtml(g.badge)}</span>${escapeHtml(g.title)}</h3>
+          <ol class="toc-part-list">${g.items.join("")}</ol>
+        </section>`
+        )
+        .join("");
+      return `<div class="toc-box toc-map">
+        <h2>Table of contents</h2>
+        <p class="toc-lead">Phases at a glance — appendix collapsed; jump via section numbers.</p>
+        <div class="toc-grid">${grid}</div>
+      </div>`;
+    }
   );
+}
+
+/** Keep PART banner glued to the first section under it. */
+function wrapPartHeadings(html) {
+  return html.replace(
+    /(<h2[^>]*>PART\s+[^<]+<\/h2>)\s*(<h2\b[^>]*>[\s\S]*?<\/h2>)/gi,
+    '<div class="part-lead">$1$2</div>'
+  );
+}
+
+/** Keep section headings glued to the diagram that follows them. */
+function wrapFigureSections(html) {
+  const tokens = html.split(/(?=<h[234]\b|<p\b|<div class="diagram-block">)/);
+  let out = "";
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (!/^<h[234]/.test(t)) {
+      out += t;
+      continue;
+    }
+    let j = i + 1;
+    let middle = "";
+    while (j < tokens.length && /^<p\b/.test(tokens[j])) {
+      middle += tokens[j++];
+    }
+    if (tokens[j]?.startsWith('<div class="diagram-block">')) {
+      const headingText = t.replace(/<[^>]+>/g, "").trim();
+      const peeled = peelDiagramBlock(tokens[j]);
+      let diagram = peeled.block;
+      if (headingText && !diagram.includes("diagram-label")) {
+        diagram = diagram.replace(
+          '<div class="diagram-block">',
+          `<div class="diagram-block"><div class="diagram-label">${escapeHtml(headingText)}</div>`
+        );
+      }
+      if (middle) {
+        out += `<div class="figure-group">${t}${middle}<section class="figure-section">${diagram}</section></div>${peeled.rest}`;
+      } else {
+        out += `<section class="figure-section">${t}${diagram}</section>${peeled.rest}`;
+      }
+      i = j;
+    } else {
+      out += t;
+    }
+  }
+  return out;
 }
 
 function addHeadingIds(html) {
@@ -366,29 +794,34 @@ function renderCover({ title, opts }) {
   if (!opts.cover) return "";
   const chips = opts.chips
     .map((c) => `<span class="cover-chip">${escapeHtml(c)}</span>`)
-    .join("\n");
+    .join("");
   const subtitle = opts.subtitle
     ? `<p class="subtitle">${escapeHtml(opts.subtitle)}</p>`
     : "";
   const meta = opts.meta
     ? `<p class="cover-meta">${escapeHtml(opts.meta)}</p>`
-    : "";
+    : "<span></span>";
   const chipRow = chips ? `<div class="cover-path">${chips}</div>` : "";
 
   return `<header class="cover">
-      <div class="cover-kicker">${escapeHtml(opts.kicker)}</div>
-      <h1>${escapeHtml(title)}</h1>
-      ${subtitle}
-      ${chipRow}
-      ${meta}
+      <div class="cover-top">
+        <div class="cover-rule"></div>
+        <p class="cover-kicker">${escapeHtml(opts.kicker)}</p>
+      </div>
+      <div class="cover-main">
+        <h1>${escapeHtml(title)}</h1>
+        ${subtitle}
+        ${chipRow}
+      </div>
+      <div class="cover-bottom">
+        ${meta}
+        <span class="cover-brand">pncsy</span>
+      </div>
     </header>`;
 }
 
 function applyFrontmatter(opts, fm) {
   const o = { ...opts };
-  if (fm.title && !process.argv.includes("--subtitle")) {
-    /* title used separately */
-  }
   if (fm.subtitle != null && !hadFlag("--subtitle")) o.subtitle = String(fm.subtitle);
   if (fm.kicker != null && !hadFlag("--kicker")) o.kicker = String(fm.kicker);
   if (fm.meta != null && !hadFlag("--meta")) o.meta = String(fm.meta);
@@ -398,6 +831,7 @@ function applyFrontmatter(opts, fm) {
   if (fm.cover === false) o.cover = false;
   if (fm.toc === false) o.toc = false;
   if (fm.polish === false) o.polish = false;
+  if (fm.linkify_repo === false) o.repoLinks = false;
   if (fm.format && !hadFlag("--format") && !hadFlag("-f") && !hadFlag("--pdf") && !hadFlag("--html") && !hadFlag("--pack")) {
     const f = String(fm.format).toLowerCase();
     if (["pdf", "html", "pack"].includes(f)) {
@@ -413,7 +847,7 @@ function hadFlag(flag) {
   return process.argv.includes(flag);
 }
 
-function buildDocumentHtml({ title, bodyHtml, css, mermaidBlock, opts, sourceName }) {
+function buildDocumentHtml({ title, bodyHtml, css, scriptsBlock, opts, sourceName }) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -421,7 +855,6 @@ function buildDocumentHtml({ title, bodyHtml, css, mermaidBlock, opts, sourceNam
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(title)}</title>
   <style>${css}</style>
-  ${mermaidBlock}
 </head>
 <body>
   <article class="page">
@@ -431,6 +864,7 @@ function buildDocumentHtml({ title, bodyHtml, css, mermaidBlock, opts, sourceNam
     </div>
     <p class="footer-note">prompting-nahi-coding-sikho-yojna · ${escapeHtml(sourceName)}</p>
   </article>
+  ${scriptsBlock || ""}
 </body>
 </html>`;
 }
@@ -460,49 +894,44 @@ async function renderOne(filePath, opts, tools) {
 
   let md = afterFm;
   if (localOpts.polish) md = polishMarkdown(md);
+  const repoFm = {
+    ...fm,
+    repo_base: localOpts.repoBase || fm.repo_base,
+    repo_tree: localOpts.repoTree || fm.repo_tree,
+  };
+  if (localOpts.repoLinks && repoFm.repo_base) {
+    md = linkifyRepoPaths(md, repoFm);
+  }
   const title = extractTitle(md, fm.title);
   md = injectAutoToc(md, localOpts.toc);
 
   // Drop duplicate H1 from body when cover shows it
   const bodyMd = localOpts.cover ? md.replace(/^#\s+.+\n+/, "") : md;
   let bodyHtml = markedParse(bodyMd);
+  bodyHtml = tagExternalLinks(bodyHtml);
+  if (localOpts.repoLinks && repoFm.repo_base) {
+    bodyHtml = linkifyCodeInHtml(bodyHtml, repoFm);
+  }
+  bodyHtml = await renderDotDiagrams(bodyHtml);
   bodyHtml = wrapMermaid(bodyHtml);
+  bodyHtml = wrapFigureSections(bodyHtml);
   bodyHtml = wrapToc(bodyHtml);
   bodyHtml = addHeadingIds(bodyHtml);
+  bodyHtml = wrapPartHeadings(bodyHtml);
 
-  const mermaidBlock = mermaidJs
+  const scriptsBlock = mermaidJs
     ? `<script>${mermaidJs}</script>
-  <script>
-    (async function () {
-      try {
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: "base",
-          themeVariables: {
-            primaryColor: "#e6f3f2",
-            primaryTextColor: "#1a2332",
-            primaryBorderColor: "#0f6e6a",
-            lineColor: "#5a6577",
-            secondaryColor: "#f0f2f6",
-            tertiaryColor: "#ffffff",
-            fontFamily: "Avenir Next, Segoe UI, Helvetica, Arial, sans-serif"
-          },
-          flowchart: { curve: "basis", htmlLabels: true },
-          securityLevel: "loose"
-        });
-        await mermaid.run({ querySelector: ".mermaid" });
-      } catch (e) { console.error(e); }
-      document.documentElement.setAttribute("data-mermaid-ready", "true");
-    })();
-  </script>`
-    : `<script>document.documentElement.setAttribute("data-mermaid-ready", "true");</script>`;
+<script>${MERMAID_BOOTSTRAP}</script>`
+    : `<script>${PRINT_LAYOUT_SCRIPT}
+document.documentElement.setAttribute("data-mermaid-ready", "true");
+preparePrintLayout();</script>`;
 
   const sourceName = path.basename(filePath);
   const html = buildDocumentHtml({
     title,
     bodyHtml,
     css,
-    mermaidBlock,
+    scriptsBlock,
     opts: localOpts,
     sourceName,
   });
@@ -513,12 +942,8 @@ async function renderOne(filePath, opts, tools) {
   const written = [];
 
   fs.writeFileSync(outHtml, html, "utf8");
-  if (localOpts.wantHtml || localOpts.wantPdf) {
-    if (localOpts.wantHtml || localOpts.keepHtml || localOpts.wantPdf) {
-      log("HTML " + outHtml);
-      if (localOpts.wantHtml) written.push(outHtml);
-    }
-  }
+  log("HTML " + outHtml);
+  if (localOpts.wantHtml) written.push(outHtml);
 
   if (localOpts.wantPdf) {
     if (!chrome) {
@@ -546,6 +971,11 @@ async function renderOne(filePath, opts, tools) {
       } catch {
         log("Mermaid wait timeout — print anyway");
       }
+      await page.evaluate(() => {
+        if (typeof window.preparePrintLayout === "function") {
+          window.preparePrintLayout();
+        }
+      });
       await new Promise((r) => setTimeout(r, 400));
       const footerTitle = escapeHtml(title).slice(0, 60);
       await page.pdf({
@@ -553,10 +983,10 @@ async function renderOne(filePath, opts, tools) {
         format: "A4",
         printBackground: true,
         margin: {
-          top: "14mm",
-          right: "12mm",
-          bottom: "16mm",
-          left: "12mm",
+          top: "12mm",
+          right: "10mm",
+          bottom: "14mm",
+          left: "10mm",
         },
         displayHeaderFooter: true,
         headerTemplate: "<div></div>",
@@ -574,8 +1004,6 @@ async function renderOne(filePath, opts, tools) {
 
     if (!localOpts.wantHtml && !localOpts.keepHtml && fs.existsSync(outHtml)) {
       fs.unlinkSync(outHtml);
-    } else if (!localOpts.wantHtml && localOpts.keepHtml) {
-      // intermediate kept for debug; not listed as primary html product
     }
   }
 
@@ -669,7 +1097,22 @@ async function main() {
   return ship(parseArgs(process.argv));
 }
 
-export { slugify, parseFrontmatter, polishMarkdown, injectAutoToc };
+export {
+  slugify,
+  parseFrontmatter,
+  polishMarkdown,
+  injectAutoToc,
+  linkifyRepoPaths,
+  linkifyCodeInHtml,
+  tagExternalLinks,
+  optimizeMermaid,
+  wrapMermaid,
+  wrapFigureSections,
+  wrapPartHeadings,
+  buildTocGroups,
+  compactTocGroups,
+  dotPathToSlash,
+};
 
 const invokedDirectly = (() => {
   if (!process.argv[1]) return false;

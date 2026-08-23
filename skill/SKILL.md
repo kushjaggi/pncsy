@@ -22,7 +22,8 @@ Install: `curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scri
 | Command | Needs Node |
 |---------|------------|
 | `pncsy learn "<topic>"` | No — pure bash, always works |
-| `pncsy check <path.md>` | No — verifies a filled path |
+| `pncsy check <file.md>` | No — verifies any filled scaffold |
+| `pncsy adr` `arch` `flow` `constraints` `bug` `handover` | No — project doc scaffolds |
 | `pncsy node <file.md>` | Yes — PDF, HTML, Mermaid |
 | `pncsy node learn --init-config` | Yes — custom config |
 
@@ -70,6 +71,21 @@ Writes `<slug>-path.md` (scaffold) + `<slug>-path.prompt.md` (fill prompt).
 
 Config: `pncsy node learn --init-config` → `pncsy.learn.json` (or `~/.config/pncsy/learn.json`).
 
+## Project docs
+
+| User asks | Command |
+|-----------|---------|
+| Why did we choose X / log this decision | `pncsy adr "<decision>"` |
+| How does this system fit together | `pncsy arch "<system>"` |
+| Trace how X actually runs | `pncsy flow "<path>"` |
+| What should AI never touch here | `pncsy constraints` |
+| Write up this bug properly | `pncsy bug "<symptom>"` |
+| Hand off / end of session notes | `pncsy handover` |
+
+Same loop as learn: scaffold + `.prompt.md` → fill → `pncsy check`. Keep the `<!-- pncsy:<kind> … -->` line.
+
+Never invent a path, function, or line you have not read — tag unconfirmed claims `(verify)`. `arch` and `flow` record the commit they describe and go stale when HEAD moves; regenerate instead of patching.
+
 Edited prompt outranks defaults. Re-run `learn` keeps files; `--force` only on explicit reset.
 
 ## Ship behavior
@@ -77,7 +93,14 @@ Edited prompt outranks defaults. Re-run `learn` keeps files; `--force` only on e
 - Polish AI chat fluff (`--no-polish` to skip)
 - Cover from `#` title (`--no-cover` to skip)
 - Auto TOC when ≥3 `##` (`--no-toc` to skip)
-- Mermaid rendered; theme in `scripts/theme.css`
+- Mermaid rendered after DOM ready; tall diagrams resized to fit one PDF page (`scripts/theme.css`)
+- Clickable underlined GitHub/arXiv links in PDF
+- With frontmatter `repo_base`, backtick repo paths (`src/foo.py`, `docs/guide.md`) link to GitHub (`--no-repo-links` to skip)
+
+```yaml
+repo_base: https://github.com/org/repo/blob/main
+repo_paths: src, docs, examples   # or * for any path/with/slash
+```
 
 ## Reply style (always on for this skill)
 

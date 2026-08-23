@@ -9,14 +9,16 @@ die() { echo "pncsy check: $*" >&2; exit 2; }
 
 usage() {
   cat >&2 <<'EOF'
-pncsy check <path.md> [--strict]
+pncsy check <file.md> [--strict]
 
-Verifies a filled learning path against the scaffold it came from:
+Verifies any pncsy scaffold — learn, adr, arch, flow, constraints, bug,
+handover — against the shape it was generated with:
   - every expected heading still present, in order
   - no italic placeholders left unfilled
   - no unresolved (verify) tags
+  - arch and flow: warns when HEAD moved past the commit they describe
 
-  --strict   treat warnings (extra headings, verify tags) as failure
+  --strict   treat warnings (extra headings, verify tags, staleness) as failure
   -h         this help
 
 Exit: 0 clean · 1 contract broken · 2 could not check
@@ -38,22 +40,39 @@ done
 [[ -n "$FILE" ]] || usage
 [[ -f "$FILE" ]] || die "no such file: $FILE"
 
-marker="$(grep -m1 'pncsy:learn' "$FILE" || true)"
-[[ -n "$marker" ]] || die "no pncsy:learn marker in $FILE
+marker="$(grep -m1 'pncsy:[a-z]' "$FILE" || true)"
+[[ -n "$marker" ]] || die "no pncsy marker in $FILE
   The fill step must keep that line. Without it there is no contract to check against."
 
+KIND="$(printf '%s\n' "$marker" | sed -n 's/.*pncsy:\([a-z][a-z]*\).*/\1/p')"
+[[ -n "$KIND" ]] || die "marker names no kind"
+
 attr() { printf '%s\n' "$marker" | sed -n "s/.*$1=\"\([^\"]*\)\".*/\1/p"; }
-TOPIC="$(attr topic)"
-LEVEL="$(attr level)"
-DEPTH="$(attr depth)"
-[[ -n "$TOPIC" && -n "$LEVEL" && -n "$DEPTH" ]] || die "marker is missing topic/level/depth"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-bash "$ROOT/scripts/learn.sh" "$TOPIC" --level "$LEVEL" --depth "$DEPTH" -o "$tmp" --force >/dev/null 2>&1 \
-  || die "could not rebuild the scaffold for level=$LEVEL depth=$DEPTH"
-EXPECTED="$(find "$tmp" -name '*-path.md' | head -1)"
+# Rebuild the scaffold from the marker rather than hardcoding what it should
+# contain, so the expected shape can never drift from the generator.
+if [[ "$KIND" == "learn" ]]; then
+  TOPIC="$(attr topic)"; LEVEL="$(attr level)"; DEPTH="$(attr depth)"
+  [[ -n "$TOPIC" && -n "$LEVEL" && -n "$DEPTH" ]] || die "marker is missing topic/level/depth"
+  LABEL="$TOPIC · $LEVEL · $DEPTH"
+  bash "$ROOT/scripts/learn.sh" "$TOPIC" --level "$LEVEL" --depth "$DEPTH" -o "$tmp" --force >/dev/null 2>&1 \
+    || die "could not rebuild the scaffold for level=$LEVEL depth=$DEPTH"
+else
+  SUBJECT="$(attr subject)"
+  LABEL="$KIND${SUBJECT:+ · $SUBJECT}"
+  if [[ -n "$SUBJECT" ]]; then
+    bash "$ROOT/scripts/doc.sh" "$KIND" "$SUBJECT" -o "$tmp" --force >/dev/null 2>&1 \
+      || die "could not rebuild a '$KIND' scaffold"
+  else
+    bash "$ROOT/scripts/doc.sh" "$KIND" -o "$tmp" --force >/dev/null 2>&1 \
+      || die "could not rebuild a '$KIND' scaffold"
+  fi
+fi
+
+EXPECTED="$(find "$tmp" -name '*.md' ! -name '*.prompt.md' | head -1)"
 [[ -n "$EXPECTED" ]] || die "scaffold rebuild produced no file"
 
 headings() { grep -E '^#{2,3} ' "$1" | sed 's/[[:space:]]*$//' || true; }
@@ -64,7 +83,7 @@ sort "$tmp/got" > "$tmp/got.s"
 
 errors=0
 warnings=0
-echo "$FILE  ($TOPIC · $LEVEL · $DEPTH)"
+echo "$FILE  ($LABEL)"
 echo ""
 
 while IFS= read -r h; do
@@ -101,6 +120,18 @@ vcount="${vcount:-0}"
 if [[ "$vcount" -gt 0 ]]; then
   echo "  ! unresolved        (verify) × $vcount"
   warnings=$((warnings + 1))
+fi
+
+# A doc that describes live code is only true at the commit it was written
+# against. Shape stays valid while the content silently rots, so say so.
+if printf '%s\n' arch flow | grep -qx "$KIND"; then
+  was="$(attr commit)"
+  now="$(git -C "$(dirname "$FILE")" rev-parse --short HEAD 2>/dev/null || true)"
+  if [[ -n "$was" && "$was" != "unknown" && -n "$now" && "$was" != "$now" ]]; then
+    behind="$(git -C "$(dirname "$FILE")" rev-list --count "$was..HEAD" 2>/dev/null || true)"
+    echo "  ! stale             describes $was, HEAD is $now${behind:+ (+$behind commits)}"
+    warnings=$((warnings + 1))
+  fi
 fi
 
 echo ""

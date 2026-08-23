@@ -153,6 +153,43 @@ FAIL  2 problem(s), 1 warning(s)
 
 Exit `0` clean, `1` contract broken, `2` uncheckable — so it drops straight into CI or a pre-commit hook. `--strict` fails on warnings too.
 
+---
+
+## Project docs
+
+The same scaffold → fill → check loop, pointed at the docs an AI-assisted codebase actually needs. Each writes a `.md` and a `.prompt.md`, and each is verifiable by `pncsy check`.
+
+| Command | Writes | The section that earns it |
+|---------|--------|---------------------------|
+| `pncsy adr "<decision>"` | Decision record | **Alternatives rejected** — if you can't name one, you had no choice, not a decision |
+| `pncsy arch ["<system>"]` | System map | **Boundaries** — what this system deliberately does not own |
+| `pncsy flow "<path>"` | Execution trace | **Failure modes** — what each hop does when it breaks |
+| `pncsy constraints` | Guardrails | **Never touch**, each with a concrete consequence |
+| `pncsy bug "<symptom>"` | Incident record | **Blast radius** — the other callers you checked |
+| `pncsy handover ["<label>"]` | Session handoff | **Next step** — exactly one, not a wishlist |
+
+```bash
+pncsy adr "Use Postgres over DynamoDB"
+# → use-postgres-over-dynamodb-adr.md + .prompt.md
+```
+
+Fill it with your agent, then `pncsy check` it like anything else.
+
+### Docs about code rot. These say so.
+
+`arch` and `flow` describe live code, so they stamp the commit they were written against. When HEAD moves past it, `check` tells you the doc is describing a codebase that no longer exists:
+
+```bash
+$ pncsy check billing-arch.md
+billing-arch.md  (arch · billing service)
+
+  ! stale             describes 4e7422a, HEAD is cbc0f7c (+31 commits)
+
+OK    contract kept, 1 warning(s)
+```
+
+Shape still valid, content probably not — which is the honest answer. `adr`, `bug`, and `handover` never warn: they're historical records, and an ADR from March is *supposed* to describe March.
+
 <details>
 <summary><strong>Custom structure</strong> (needs Node)</summary>
 
@@ -199,8 +236,9 @@ pncsy node docs/               # every .md in a folder
 - Strips “Sure! Here’s a comprehensive guide…” openings (`--no-polish` to keep)
 - Teal cover page from `#` title + subtitle + chips
 - Auto table of contents when ≥3 `##` headings
-- Renders Mermaid diagrams (not raw code fences)
-- YAML frontmatter: `title`, `subtitle`, `chips`, `format`
+- Renders Mermaid diagrams (waits for DOM, fits tall diagrams to one PDF page)
+- Clickable GitHub / arXiv links (underlined in PDF)
+- Repo path linkification when `repo_base` is set in frontmatter
 
 ```yaml
 ---
@@ -208,8 +246,16 @@ title: My Doc
 subtitle: Share-ready version
 chips: [API, Auth, Deploy]
 format: pack
+repo_base: https://github.com/org/repo/blob/main
+repo_tree: https://github.com/org/repo/tree/main   # optional; for paths ending in /
+repo_paths: src, docs, examples                    # optional; default common prefixes
+linkify_repo: false                                # optional; disable path linkification
 ---
 ```
+
+With `repo_base` set, `` `src/foo.py` `` and `` `docs/guide.md` `` become clickable blob links. Use `repo_paths: *` to link any backtick path that contains `/`.
+
+Working sample: **[examples/repo-links.md](examples/repo-links.md)** — `pncsy node examples/repo-links.md --pack`
 
 <details>
 <summary><strong>All ship flags</strong></summary>
@@ -218,7 +264,10 @@ format: pack
 |------|--------|
 | `--subtitle` / `--chips` / `--kicker` | Cover metadata |
 | `--no-cover` / `--no-toc` / `--no-polish` | Skip cover, TOC, or fluff cleanup |
+| `--no-repo-links` | Skip repo path / GitHub link enhancement |
+| `--repo-base` / `--repo-tree` | Override frontmatter repo link bases |
 | `--no-html-keep` | Delete intermediate HTML after PDF |
+| `--meta <text>` | Cover metadata line |
 | `--json` | `{ ok, results }` on stdout for agents |
 | `--chrome <path>` | Override browser binary |
 
@@ -245,7 +294,13 @@ Per-editor setup: **[skill/INSTALL.md](skill/INSTALL.md)**
 
 ```bash
 pncsy learn "<topic>" [options]      # scaffold — no Node
-pncsy check <path.md> [--strict]     # verify a filled path — no Node
+pncsy check <file.md> [--strict]     # verify a filled doc — no Node
+pncsy adr "<decision>"               # decision record — no Node
+pncsy arch ["<system>"]              # system map — no Node
+pncsy flow "<path>"                  # execution trace — no Node
+pncsy constraints                    # what must never change — no Node
+pncsy bug "<symptom>"                # root cause + blast radius — no Node
+pncsy handover ["<label>"]           # session handoff — no Node
 pncsy node <file.md|dir> [options]   # ship PDF/HTML — needs Node
 pncsy setup                          # install status
 pncsy setup --node                   # fetch Node deps
@@ -265,7 +320,7 @@ pncsy/
 ```
 
 ```bash
-node scripts/check.mjs                 # 15 tests (bash/node parity)
+node scripts/check.mjs                 # self-check (learn parity, doc kinds, ship helpers)
 node scripts/capture-screenshots.mjs   # regenerate README images
 ```
 

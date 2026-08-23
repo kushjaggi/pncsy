@@ -22,8 +22,16 @@ pncsy — learning paths + share-ready docs
 
 No Node required:
   pncsy learn "<topic>" [--level x] [--depth y]
-  pncsy check <path.md>    verify a filled path kept its shape
+  pncsy check <file.md>    verify a filled doc kept its shape
   pncsy setup              show install status
+
+Project docs (scaffold + fill prompt, same check contract):
+  pncsy adr "<decision>"       what was chosen, and what lost
+  pncsy arch ["<system>"]      components, boundaries, invariants
+  pncsy flow "<path>"          execution trace, entry to exit
+  pncsy constraints            what must never change
+  pncsy bug "<symptom>"        root cause, blast radius, proof
+  pncsy handover ["<label>"]   done, in flight, single next step
 
 Node required (PDF, HTML, Mermaid, custom config):
   pncsy node <file.md> [--pack] [--open]
@@ -97,6 +105,9 @@ case "$1" in
   learn)
     shift
     exec "$ROOT/scripts/learn.sh" "$@"
+    ;;
+  adr|arch|flow|constraints|bug|handover)
+    exec "$ROOT/scripts/doc.sh" "$@"
     ;;
   check)
     shift
