@@ -331,13 +331,25 @@ Working sample: **[examples/repo-links.md](examples/repo-links.md)** — `pncsy 
 Works with **Cursor, Claude Code, Windsurf, Cline, Copilot** — anything that can run shell commands.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh | bash
-ln -sfn ~/.local/share/pncsy/skill ~/.cursor/skills/pncsy
+pncsy setup --skill        # every agent already on this machine
+pncsy setup --skill --here # this repository instead
 ```
+
+One command, no Node. It links the skill into the skills directories that
+**already exist** under your home — so nothing appears for an editor you don't
+use — through a shared store at `~/.agents/skills/pncsy`. Upgrading `pncsy`
+updates the skill everywhere. It skips directories another tool manages by
+manifest, and never overwrites a `pncsy` skill you wrote yourself. Add
+`--dry-run` to see the plan, `--copy` for sandboxes, `--remove` to undo.
+
+Skills you already keep locally can ride the same fan-out via `extraSkills` in
+`pncsy.skill.json`. `pncsy` links them but never fetches or versions them — for
+that, [`npx skills`](https://github.com/vercel-labs/skills) is the right tool
+and handles third-party skills generally.
 
 No skills folder? Put **[AGENTS.md](AGENTS.md)** in your project root — agents pick up when and how to call `pncsy`.
 
-Per-editor setup: **[skill/INSTALL.md](skill/INSTALL.md)**
+Flags, config, and per-editor manual setup: **[skill/INSTALL.md](skill/INSTALL.md)**
 
 ---
 
@@ -356,6 +368,8 @@ pncsy handover ["<label>"]           # session handoff — no Node
 pncsy node <file.md|dir> [options]   # ship PDF/HTML — needs Node
 pncsy setup                          # install status
 pncsy setup --node                   # fetch Node deps
+pncsy setup --skill                  # install the skill into every agent found
+                                     #   --here --copy --dry-run --remove
 pncsy node learn --init-config       # custom config template
 ```
 

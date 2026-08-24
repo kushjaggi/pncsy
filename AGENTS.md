@@ -83,4 +83,22 @@ Re-running `learn` keeps existing files. `--force` only when user wants reset.
 
 ## Install skill in your editor
 
-See [skill/INSTALL.md](skill/INSTALL.md) for Cursor, Claude Code, Windsurf, Cline, and generic setup.
+```bash
+pncsy setup --skill              # every agent already on this machine
+pncsy setup --skill --here       # this repository instead (copies)
+pncsy setup --skill --dry-run    # print the plan, write nothing
+pncsy setup --skill --remove     # undo
+```
+
+No Node needed. Only writes into skills directories that already exist, skips
+directories another tool manages by manifest, and never overwrites a
+hand-written `pncsy` skill — those are reported and left alone. `--copy`
+replaces symlinks for sandboxes.
+
+Optional `./pncsy.skill.json`, else `~/.config/pncsy/skill.json` — every field
+optional: `agents`, `exclude`, `mode` (`symlink` | `copy`), and `extraSkills`,
+local skill folders to fan out alongside pncsy's own. `pncsy` links those; it
+never fetches or versions them. For third-party skills generally, use
+[`npx skills`](https://github.com/vercel-labs/skills).
+
+Manual per-editor setup: [skill/INSTALL.md](skill/INSTALL.md).

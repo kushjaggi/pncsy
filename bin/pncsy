@@ -26,6 +26,8 @@ No Node required:
                            no argument scans the repo — one CI gate
                            --json for agents, --strict to fail on warnings
   pncsy setup              show install status
+  pncsy setup --skill      install the pncsy skill into every agent found
+                           --here for this repo, --copy, --dry-run, --remove
 
 Project docs (scaffold + fill prompt, same check contract):
   pncsy adr "<decision>"       what was chosen, and what lost
@@ -79,7 +81,11 @@ run_node() {
 }
 
 cmd_setup() {
-  [[ $# -le 1 ]] || die "setup accepts only --node"
+  if [[ "${1:-}" == "--skill" ]]; then
+    shift
+    exec "$ROOT/scripts/skill.sh" "$@"
+  fi
+  [[ $# -le 1 ]] || die "setup accepts only --node or --skill"
   if [[ "${1:-}" == "--node" ]]; then
     has_node || die "Node not found — install from https://nodejs.org first"
     node_major_ok || die "Node ${PNCSY_NODE_MIN:-18}+ required"
@@ -99,7 +105,7 @@ cmd_setup() {
     echo "✓ node stack ready — try: pncsy node file.md --pack"
     exit 0
   fi
-  [[ $# -eq 0 ]] || die "unknown setup option: $1 (use: pncsy setup --node)"
+  [[ $# -eq 0 ]] || die "unknown setup option: $1 (use: pncsy setup --node or --skill)"
 
   echo "pncsy @ $ROOT"
   echo "  learn (bash): ready"
@@ -110,6 +116,7 @@ cmd_setup() {
   else
     echo "  node stack:   needs Node — install Node, then: pncsy setup --node"
   fi
+  "$ROOT/scripts/skill.sh" --status || true
 }
 
 [[ $# -lt 1 ]] && usage 0

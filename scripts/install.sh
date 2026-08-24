@@ -99,3 +99,6 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
 fi
 echo "  try:  pncsy learn \"Kafka\" --level intermediate"
 echo "  PDF:  install Node, then  pncsy setup --node  &&  pncsy node file.md --pack"
+# Hint only. Writing symlinks across a home directory is never a side effect of
+# piping an installer into bash — the user has to ask for it.
+PNCSY_HOME="$INSTALL_DIR" bash "$INSTALL_DIR/scripts/skill.sh" --status 2>/dev/null || true

@@ -822,6 +822,129 @@ check("installer upgrades cleanly without deleting fetched dependencies", () => 
   }
 });
 
+// `setup --skill` writes into a home directory, so the blast radius of a bug is
+// somebody's real dotfiles. Every run here uses a throwaway HOME.
+function fakeHome(label, build) {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `pncsy-skill-${label}-`));
+  const home = path.join(dir, "home");
+  const run = (...args) =>
+    spawnSync("bash", [path.join(root, "scripts", "skill.sh"), ...args], {
+      cwd: home,
+      env: { ...process.env, HOME: home },
+    });
+  try {
+    for (const rel of [".claude/skills", ".roo/skills", ".cursor/skills-cursor"]) {
+      fs.mkdirSync(path.join(home, rel), { recursive: true });
+    }
+    // Cursor re-syncs this one from its own manifest, so writes here are lost.
+    fs.writeFileSync(path.join(home, ".cursor/skills-cursor/.sync-manifest.json"), "{}\n");
+    // A skill the user wrote by hand, under the name pncsy wants.
+    fs.mkdirSync(path.join(home, ".foo/skills/pncsy"), { recursive: true });
+    fs.writeFileSync(path.join(home, ".foo/skills/pncsy/SKILL.md"), "hand written\n");
+    build({ home, run });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+check("skill install links only into agent directories that already exist", () => {
+  fakeHome("detect", ({ home, run }) => {
+    const first = run();
+    assert.strictEqual(first.status, 0, first.stderr.toString());
+
+    // Detection, not a hardcoded vendor table: pncsy links inside directories
+    // it found and never conjures one for an agent the user does not have.
+    const link = (p) => fs.readlinkSync(path.join(home, p));
+    assert.strictEqual(link(".claude/skills/pncsy"), "../../.agents/skills/pncsy");
+    assert.strictEqual(link(".roo/skills/pncsy"), "../../.agents/skills/pncsy");
+    assert.ok(!fs.existsSync(path.join(home, ".windsurf")), "installer invented a vendor directory");
+    assert.ok(fs.existsSync(path.join(home, ".agents/skills/pncsy/SKILL.md")), "store entry is not a usable skill");
+
+    // A directory another tool owns by manifest must be left completely alone.
+    assert.deepStrictEqual(
+      fs.readdirSync(path.join(home, ".cursor/skills-cursor")),
+      [".sync-manifest.json"],
+      "wrote into a Cursor-managed directory"
+    );
+
+    // A hand-written skill outranks the installer, and the run has to say so.
+    assert.strictEqual(
+      fs.readFileSync(path.join(home, ".foo/skills/pncsy/SKILL.md"), "utf8"),
+      "hand written\n",
+      "clobbered a hand-written skill"
+    );
+    assert.match(first.stdout.toString(), /~ skip\s+~\/\.foo\/skills\/pncsy \(hand-written\)/);
+
+    // Re-running must land on byte-identical state, not stack a second layer.
+    const before = [".claude/skills/pncsy", ".roo/skills/pncsy", ".agents/skills/pncsy"].map(link);
+    assert.strictEqual(run().status, 0);
+    assert.deepStrictEqual(
+      [".claude/skills/pncsy", ".roo/skills/pncsy", ".agents/skills/pncsy"].map(link),
+      before,
+      "a second run changed the result"
+    );
+
+    // --dry-run has to plan the same work while writing nothing.
+    fs.rmSync(path.join(home, ".claude/skills/pncsy"));
+    const dry = run("--dry-run");
+    assert.match(dry.stdout.toString(), /\+ link\s+~\/\.claude\/skills\/pncsy/);
+    assert.ok(!fs.existsSync(path.join(home, ".claude/skills/pncsy")), "--dry-run wrote to disk");
+  });
+});
+
+check("skill remove deletes what pncsy installed and nothing else", () => {
+  fakeHome("remove", ({ home, run }) => {
+    assert.strictEqual(run().status, 0);
+    const removed = run("--remove");
+    assert.strictEqual(removed.status, 0, removed.stderr.toString());
+
+    for (const gone of [".claude/skills/pncsy", ".roo/skills/pncsy", ".agents/skills/pncsy"]) {
+      assert.ok(!fs.existsSync(path.join(home, gone)), `${gone} survived --remove`);
+    }
+    // Ownership is proved by where a link resolves, so this one is untouchable.
+    assert.strictEqual(
+      fs.readFileSync(path.join(home, ".foo/skills/pncsy/SKILL.md"), "utf8"),
+      "hand written\n",
+      "--remove deleted a hand-written skill"
+    );
+    // Detected directories themselves are the user's, not pncsy's to delete.
+    assert.ok(fs.existsSync(path.join(home, ".claude/skills")), "--remove deleted an agent directory");
+    assert.strictEqual(run("--remove").status, 0, "--remove is not safe to repeat");
+  });
+});
+
+// The documented default is "agents": ["*"], and an unquoted shell expansion of
+// it matched the working directory's file names instead — installing nothing
+// while still reporting success.
+check("skill config wildcards, excludes and extra folders survive the shell", () => {
+  fakeHome("config", ({ home, run }) => {
+    const extra = path.join(home, "my-skill");
+    fs.mkdirSync(extra);
+    fs.writeFileSync(path.join(extra, "SKILL.md"), "# mine\n");
+    fs.writeFileSync(path.join(home, "decoy.txt"), "");
+    fs.writeFileSync(
+      path.join(home, "pncsy.skill.json"),
+      JSON.stringify({
+        agents: ["*"],
+        exclude: ["roo"],
+        extraSkills: [extra, path.join(home, "missing"), home],
+      })
+    );
+
+    const out = run();
+    assert.strictEqual(out.status, 0, out.stderr.toString());
+    assert.ok(fs.existsSync(path.join(home, ".claude/skills/pncsy")), '"*" matched nothing');
+    assert.ok(!fs.existsSync(path.join(home, ".roo/skills/pncsy")), "exclude was ignored");
+
+    // extraSkills fan out through the same store; a bad entry is reported and
+    // skipped so one stale path cannot block pncsy's own skill.
+    assert.strictEqual(fs.readlinkSync(path.join(home, ".claude/skills/my-skill")), "../../.agents/skills/my-skill");
+    assert.match(out.stdout.toString(), /! skip .*missing \(not a directory\)/);
+    assert.match(out.stdout.toString(), /! skip .*\(no SKILL\.md\)/);
+  });
+});
+
 // The fill instructions must not tell the agent to delete what check-path reads.
 check("fill prompt protects the marker", () => {
   const prompt = buildPrompt({ topic: "Kafka Streams", level: "advanced", depth: "standard" });

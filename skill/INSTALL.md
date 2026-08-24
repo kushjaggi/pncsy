@@ -6,11 +6,53 @@ Works with any agent that can run shell commands and read project instructions.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kushjaggi/pncsy/main/scripts/install.sh | bash
+pncsy setup --skill
 ```
 
-After install, symlink this repo's `skill/` folder into your editor's skills directory.
+That's it. `--skill` finds every agent already on your machine and links the
+skill into each one, through a shared store at `~/.agents/skills/pncsy`.
+
+| Flag | Effect |
+|------|--------|
+| `--here` | This repository instead of your home directory (copies, so teammates and CI get real files) |
+| `--copy` | Copy instead of symlink — sandboxes, or Windows without developer mode |
+| `--dry-run` | Print the exact plan, write nothing |
+| `--remove` | Delete every link pncsy created, and nothing else |
+
+**What it will not touch.** It only writes inside skills directories that
+already exist — no `~/.windsurf` appears because you don't use Windsurf. It
+skips any directory another tool manages by manifest or lock file (Cursor's
+`skills-cursor`, its plugin cache), and it never overwrites a `pncsy` skill you
+wrote yourself: that gets reported and left alone.
+
+Because the links point at pncsy's own `skill/` folder, upgrading pncsy updates
+the skill everywhere at once.
+
+### Also fan out folders you already have
+
+Skills you keep locally can ride the same loop. `pncsy` links them; it never
+fetches or versions them — use [`npx skills`](https://github.com/vercel-labs/skills)
+for that.
+
+`./pncsy.skill.json`, else `~/.config/pncsy/skill.json`, every field optional:
+
+```json
+{
+  "agents": ["*"],
+  "exclude": ["codex"],
+  "mode": "symlink",
+  "extraSkills": ["~/dev/my-skills/reviewer"]
+}
+```
+
+Each `extraSkills` entry must be a directory containing a `SKILL.md`; anything
+else is reported and skipped.
 
 ---
+
+# Appendix — manual setup
+
+Only needed if you'd rather not run `pncsy setup --skill`.
 
 ## Cursor
 
